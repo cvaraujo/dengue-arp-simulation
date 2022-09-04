@@ -9,8 +9,8 @@ model DenguePropagation
 
 global {
 	// Filename of buildings and roads
-	string building_filename <- "../includes/test/buildings.shp";
-	string road_filename <- "../includes/test/roads.shp";
+	string building_filename <- "../includes/osmnx/nodes.shp";
+	string road_filename <- "../includes/osmnx/edges.shp";
 			
 	//Shapefile of the roads 
 	file road_shapefile <- file(road_filename);
@@ -34,7 +34,7 @@ global {
 	string outbreaks_csv_filename_output <- "outbreaks.csv";
 	
 	// Start date simulation
-	date start_date <- date("2022-01-01-05-00-00");
+	date start_date <- date("2022-01-01-05-30-00");
 	
 	// Start end work
 	int min_work_start <- 6;
@@ -143,17 +143,17 @@ global {
 					name <- line[0];
 					id <- int(line[1]);
 					// Speed
-					speed <- line[3] = "nil" ? rnd(people_min_speed, people_max_speed) : float(line[3]);
+					speed <- line[2] = "nil" ? rnd(people_min_speed, people_max_speed) : float(line[2]);
 					// initial state
-					state <- line[4] = "nil" ? 0 : int(line[4]);
+					state <- line[3] = "nil" ? 0 : int(line[3]);
 					// current edge
-					current_road <-line[5] = "nil" ? one_of(road) : one_of(road where (each.id_key = int(line[5])));
+					current_road <-line[4] = "nil" ? one_of(road) : one_of(road where (each.id_key = int(line[4])));
 					// Working place
-					start_outbreak <- line[6] = "nil" ? one_of(outbreaks) : one_of(outbreaks where (each.name = line[6]));
+					start_outbreak <- line[5] = "nil" ? one_of(outbreaks) : one_of(outbreaks where (each.name = line[5]));
 					// Set work hours
 					bounds <- circle(max_move_radius, start_outbreak.location);
 					// Current location
-					location <- line[7] = "nil" ? any_location_in(one_of(road)) : point(float(line[7]), float(line[8]));
+					location <- line[6] = "nil" ? any_location_in(one_of(road)) : point(float(line[6]), float(line[7]));
 				}
 			}
 		} else {
@@ -435,19 +435,20 @@ species road {
 }
 
 experiment dengue_propagation type: gui {
+parameter "Shapefile for the buildings:" var: building_filename category: "string";
 	parameter "Shapefile for the buildings:" var: building_filename category: "string";
 	parameter "Shapefile for the roads:" var: road_filename category: "string";
-	parameter "Number of people agents" var: nb_people category: "human" init: 50;
-	parameter "Number of infected people agents" var: nb_infected_people category: "human" init: 20;
-	parameter "Number of mosquitoes agents" var: nb_mosquitoes category: "mosquitoes" init: 0;
-	parameter "Number of infected mosquitoes agents" var: nb_infected_mosquitoes category: "mosquitoes" init: 100;
+	parameter "Number of people agents" var: nb_people category: "human" init: 20;
+	parameter "Number of infected people agents" var: nb_infected_people category: "human" init: 10;
+	parameter "Number of mosquitoes agents" var: nb_mosquitoes category: "mosquitoes" init: 20;
+	parameter "Number of infected mosquitoes agents" var: nb_infected_mosquitoes category: "mosquitoes" init: 20;
 	parameter "Mosquitoes move probability" var: mosquitoes_move_probability category: "mosquitoes" init: 0.5;
-	parameter "Mosquitoes csv file" var: mosquitoes_csv_filename category: "string";
-	parameter "People csv file" var: people_csv_filename category: "string";
-	parameter "Outbreaks csv file" var: outbreaks_csv_filename category: "string";	
-	parameter "Mosquitoes csv output file" var: mosquitoes_csv_filename_output category: "string";
-	parameter "People csv output file" var: people_csv_filename_output category: "string";
-	parameter "Outbreaks csv output file" var: outbreaks_csv_filename_output category: "string";
+	parameter "Mosquitoes csv file" var: mosquitoes_csv_filename <- "mosquitoes_" + 1 + ".csv";
+	parameter "People csv file" var: people_csv_filename <- "people_" + 1 + ".csv";
+	parameter "Outbreaks csv file" var: outbreaks_csv_filename <- "outbreaks_" + 1 + ".csv";	
+	parameter "Mosquitoes csv output file" var: mosquitoes_csv_filename_output <- "mosquitoes_" + 1 + ".csv";
+	parameter "People csv output file" var: people_csv_filename_output <- "people_" + 1 + ".csv";
+	parameter "Outbreaks csv output file" var: outbreaks_csv_filename_output <- "outbreaks_" + 1 + ".csv";
 	parameter "Maximum radius" var: max_move_radius category: "mosquitoes" init: 200 #m;
 		
 	output {
@@ -478,10 +479,10 @@ experiment headless_dengue_propagation type: batch until: cycle = 1 repeat: 1 {
 	parameter "Number of infected people agents" var: nb_infected_people category: "human" init: 10;
 	parameter "Number of mosquitoes agents" var: nb_mosquitoes category: "mosquitoes" init: 20;
 	parameter "Number of infected mosquitoes agents" var: nb_infected_mosquitoes category: "mosquitoes" init: 20;
-	parameter "Mosquitoes move probability" var: mosquitoes_move_probability category: "mosquitoes" init: 1.0;
-	parameter "Mosquitoes csv file" var: mosquitoes_csv_filename category: "string";
-	parameter "People csv file" var: people_csv_filename category: "string";
-	parameter "Outbreaks csv file" var: outbreaks_csv_filename category: "string";	
+	parameter "Mosquitoes move probability" var: mosquitoes_move_probability category: "mosquitoes" init: 0.5;
+	parameter "Mosquitoes csv file" var: mosquitoes_csv_filename <- "mosquitoes_" + 1 + ".csv";
+	parameter "People csv file" var: people_csv_filename <- "people_" + 1 + ".csv";
+	parameter "Outbreaks csv file" var: outbreaks_csv_filename <- "outbreaks_" + 1 + ".csv";	
 	parameter "Mosquitoes csv output file" var: mosquitoes_csv_filename_output <- "mosquitoes_" + 1 + ".csv";
 	parameter "People csv output file" var: people_csv_filename_output <- "people_" + 1 + ".csv";
 	parameter "Outbreaks csv output file" var: outbreaks_csv_filename_output <- "outbreaks_" + 1 + ".csv";
