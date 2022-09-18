@@ -1,0 +1,25 @@
+name: CI
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: pandoc/latex
+    steps:      
+      - uses: actions/checkout@v2
+      - name: creates output
+        run:  sh ./build.sh
+      - name: Pushes to another repo
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+        with:
+          source-directory: 'output'
+          destination-github-username: 'cvaraujo'
+          destination-repository-name: 'dengue-arp-tool'
+          user-email: carlosvdaraujo@gmail.com
+          target-branch: main
+          commit-message: 'Update the simulation'
+          target-directory: 'simulation'
