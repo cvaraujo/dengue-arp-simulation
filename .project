@@ -15,4 +15,56 @@
 		<nature>org.eclipse.xtext.ui.shared.xtextNature</nature>
 		<nature>msi.gama.application.gamaNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>external/copy of edges.shp</name>
+			<type>1</type>
+			<location>/home/carlos/Documents/phd/code/dengue-arp-tool/temp/shp/as/edges.shp</location>
+		</link>
+		<link>
+			<name>external/copy of nodes.shp</name>
+			<type>1</type>
+			<location>/home/carlos/Documents/phd/code/dengue-arp-tool/temp/shp/as/nodes.shp</location>
+		</link>
+		<link>
+			<name>external/edges.shp</name>
+			<type>1</type>
+			<location>/home/carlos/Documents/phd/code/dengue-arp-tool/temp/shp/edges.shp</location>
+		</link>
+		<link>
+			<name>external/mosquitoes.csv</name>
+			<type>1</type>
+			<location>/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_states/mosquitoes.csv</location>
+		</link>
+		<link>
+			<name>external/mosquitoes_1.csv</name>
+			<type>1</type>
+			<location>/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_states/mosquitoes_1.csv</location>
+		</link>
+		<link>
+			<name>external/nodes.shp</name>
+			<type>1</type>
+			<location>/home/carlos/Documents/phd/code/dengue-arp-tool/temp/shp/nodes.shp</location>
+		</link>
+		<link>
+			<name>external/outbreaks.csv</name>
+			<type>1</type>
+			<location>/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_states/outbreaks.csv</location>
+		</link>
+		<link>
+			<name>external/outbreaks_1.csv</name>
+			<type>1</type>
+			<location>/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_states/outbreaks_1.csv</location>
+		</link>
+		<link>
+			<name>external/people.csv</name>
+			<type>1</type>
+			<location>/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_states/people.csv</location>
+		</link>
+		<link>
+			<name>external/people_1.csv</name>
+			<type>1</type>
+			<location>/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_states/people_1.csv</location>
+		</link>
+	</linkedResources>
 </projectDescription>
