@@ -34,7 +34,7 @@ global {
 	string outbreaks_csv_filename_output <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_states/outbreaks_2.csv";
 	
 	// Start date simulation
-	date start_date <- date("2022-01-01-05-30-00");
+	date start_date <- date("2022-01-01-05-00-00");
 	
 	// Start end work
 	int min_work_start <- 6;
@@ -44,18 +44,18 @@ global {
 	
 	// People range speed
 	float people_min_speed <- 5.0 #km / #h;
-	float people_max_speed <- 30.0 #km / #h;
+	float people_max_speed <- 40.0 #km / #h;
 	
 	// Mosquitoes range speed
 	float mosquitoes_min_speed <- 1.0 #km / #h;
-	float mosquitoes_max_speed <- 5.0 #km / #h;
+	float mosquitoes_max_speed <- 10.0 #km / #h;
 	
 	// Mosquitoes life parameters
 	float mosquitoes_daily_rate_of_bites <- 0.168;
 	float mosquitoes_frac_infectious_bites <- 0.6;
 	float mosquitoes_daily_latency_rate	<- 0.143;
 	float mosquitoes_susceptibility_to_dengue <- 0.526;
-	float mosquitoes_death_rate <- 0.05;
+	float mosquitoes_death_rate <- 0.01;
 	float mosquitoes_oviposition_rate <- 0.2;
 	int mosquitoes_max_carrying_capacity <- 3;
 	
@@ -63,7 +63,7 @@ global {
 	float mosquitoes_move_probability <- 0.5;
 	
 	// People parameters
-	float poeple_daily_recovery_rate <- 0.0143;
+	float poeple_daily_recovery_rate <- 0.143;
 	
 	// Outbreaks parameters
 	float eggs_to_mosquitoes <- 0.125;
@@ -73,11 +73,11 @@ global {
 	list<road> outbreak_roads;
 	
 	// Number of each specie
-	int nb_people <- 0;
-	int nb_outbreaks <- 0;
-	int nb_mosquitoes <- 0;
-	int nb_infected_people <- 0;
-	int nb_infected_mosquitoes <- 0;
+	int nb_people <- 1980;
+	int nb_outbreaks <- 20;
+	int nb_mosquitoes <- 5700;
+	int nb_infected_people <- 20;
+	int nb_infected_mosquitoes <- 300;
 	
 	// Id variables
 	int cnt_people <- 0;
@@ -85,7 +85,7 @@ global {
 	int cnt_mosquitoes <- 0;
 	
 	// Mosquitoes move radius
-	float max_move_radius <- 100.0 #m;
+	float max_move_radius <- 200.0 #m;
 	
 	init {
 		// End the simulation when no road file was provided
@@ -134,14 +134,12 @@ global {
 				start_outbreak_roads <- road at_distance(max_move_radius);
 				eggs <- rnd(1, 10) * mosquitoes_max_carrying_capacity;
 			}
-			
 		}
 		
 		// Create the mosquitoes speciest
 		if file_exists(mosquitoes_csv_filename) {
 			csv_file mosquitoes_data <- csv_file(mosquitoes_csv_filename, ";", true);
 			cnt_mosquitoes <- 0;
-			
 			
 			// Creation of the people agents
 			loop mosquito over: mosquitoes_data {
@@ -191,7 +189,10 @@ global {
 				location <- any_location_in(current_road);
 				state <- 0;
 			}
-			
+			ask mosquitoes {
+				save [name, id, speed, state, current_road.id_key, start_outbreak.id, location.x, location.y] to: mosquitoes_csv_filename_output type: csv 
+				rewrite: (int(self) = 0) ? true : false header: true;
+			}
 		}
 		
 		// Create the people species
@@ -246,6 +247,10 @@ global {
 				end_work <- rnd(min_work_end, max_work_end);
 				state <- 1;
 			}
+			ask people {
+				save [name, id, objective, speed, state, living_place.id_key, working_place.id_key, start_work, end_work, location.x, location.y] to: people_csv_filename_output type: csv
+				rewrite: (int(self) = 0) ? true : false header: true;
+			}
 		}		
 	}
 }
@@ -272,7 +277,7 @@ species outbreaks {
 		}
 	}
 		
-	reflex adult_offspring when: every(1 #cycles) and active = true {
+	reflex adult_offspring when: every(2 #cycles) and active = true {
 		if eggs > 0 {
 			int num_new_mosquitoes <- round(eggs_to_mosquitoes * eggs);
 			eggs <- eggs - num_new_mosquitoes;
@@ -288,7 +293,7 @@ species outbreaks {
 		}
 	}
 	
-	reflex aquatic_phase_death when: every(1 #cycles) and active = true {
+	reflex aquatic_phase_death when: every(2 #cycles) and active = true {
 		if eggs > 0 {
 			int aquatic_elimination <- round(aquatic_phase_mortality_rate * eggs);
 			eggs <- eggs - aquatic_elimination;
@@ -317,7 +322,7 @@ species people skills: [moving]{
 	// Target point of the agent
 	point target;
 	// Speed of the agent
-	float speed <- (10 + rnd(30)) #km/#h;
+	float speed <- (people_min_speed + rnd(people_max_speed)) #km / #h;
 	// Currante state (susceptible = 0, infected = 1 or recovered = 2)
 	int state <- 0;
 	
@@ -352,7 +357,7 @@ species people skills: [moving]{
 	// Reflex to change the state of the agent to infected
 	reflex change_to_infected_state when: state = 0 {
 		float proba <- 1 - (1 - mosquitoes_daily_rate_of_bites * mosquitoes_susceptibility_to_dengue);
-		ask mosquitoes at_distance(15 #m) {
+		ask mosquitoes at_distance(5 #m) {
 			// Check the mosquitoes state
 			if state = 2 and flip(proba){
 				myself.state <- 1;
@@ -367,11 +372,11 @@ species people skills: [moving]{
 	
 	aspect default {
 		if state = 0 {
-			draw circle(20) color: #yellow;	
+			draw circle(5) color: #yellow;	
 		} else if state = 1 {
-			draw circle(20) color: #red;
+			draw circle(5) color: #red;
 		} else {
-			draw circle(20) color: #green;
+			draw circle(5) color: #green;
 		}	
 	}
 }
@@ -381,7 +386,7 @@ species mosquitoes skills: [moving] {
 	// Id
 	int id <- -1;
 	// Default speed of the agent
-	float speed <- (2 + rnd(5)) #km / #h;
+	float speed <- (mosquitoes_min_speed + rnd(mosquitoes_max_speed)) #km / #h;
 	// State of the agent (susceptible = 0, exposed = 1 or infected = 2)
 	int state <- 0;
 	// Target
@@ -423,7 +428,7 @@ species mosquitoes skills: [moving] {
 	// Reflex to change the state of the agent to exposed
 	reflex change_to_exposed_state when: state = 0 {
 		float proba <- 1 - (1 - mosquitoes_daily_rate_of_bites * mosquitoes_susceptibility_to_dengue);
-		ask people at_distance(15 #m) {
+		ask people at_distance(5 #m) {
 			// Check the people state
 			if state = 1 and flip(proba){
 				myself.state <- 1;
@@ -436,9 +441,9 @@ species mosquitoes skills: [moving] {
 		state <- 2;
 	}
 	
-//	reflex die when: every(1 #cycles) and flip(mosquitoes_death_rate) {
-//		do die;
-//	}
+	reflex die when: every(2 #cycles) and flip(mosquitoes_death_rate) {
+		do die;
+	}
 	
 	// Reflex to generate a new offspring
 	reflex oviposition when: flip(mosquitoes_oviposition_rate){
@@ -450,12 +455,12 @@ species mosquitoes skills: [moving] {
 	}
 	
 	aspect default {
-		if state = 0 {
-			draw circle(20) color: #red;
-		} else if state = 1 {
-			draw circle(20) color: #red;
+		if state <= 1 {
+			draw circle(5) color: #black;
+		} else if state = 2 {
+			draw circle(5) color: #red;
 		} else {
-			draw circle(20) color: #red;
+			draw circle(5) color: #blue;
 		}
 	}
 }
@@ -474,7 +479,7 @@ species road {
 	int id_key;
 	
 	aspect default {
-		draw shape color: #black;
+		draw shape color: #gray;
 	} 
 }
 
@@ -493,26 +498,37 @@ experiment dengue_propagation type: gui {
 //	parameter "Mosquitoes csv output file" var: mosquitoes_csv_filename_output <- "mosquitoes_" + 1 + ".csv";
 //	parameter "People csv output file" var: people_csv_filename_output <- "people_" + 1 + ".csv";
 //	parameter "Outbreaks csv output file" var: outbreaks_csv_filename_output <- "outbreaks_" + 1 + ".csv";
-	parameter "Maximum radius" var: max_move_radius category: "mosquitoes" init: 150 #m;
+	parameter "Maximum radius" var: max_move_radius category: "mosquitoes" init: 200 #m;
 		
 	output {
-		display city type: opengl{
-			species building aspect: default ;
-			species road aspect: default ;
-			species people aspect: default ;
-			species mosquitoes aspect: default ;
-			species outbreaks aspect: default ;
-		}
-		display chart refresh: every(1#cycles) axes: false {
-			chart "Mosquitoes" type: series background: #white style: exploded {
-				data "New" value: mosquitoes count (each.state = 0) color: rgb(204,4,11);
-				data "Susceptible" value: mosquitoes count (each.state = 1) color: rgb(46,204,113);
-				data "infected" value: mosquitoes count (each.state = 2) color: rgb(231,76,60);	
-//				data "New" value: people count (each.state = 0) color: rgb(204,4,11);
-//				data "Infected People" value: people count (each.state = 1) color: rgb(52,152,219);
-//				data "Recovered People" value: people count (each.state = 2) color: rgb(152,52,29);
+//		display city type: opengl{
+//			species building aspect: default ;
+//			species road aspect: default ;
+//			species people aspect: default ;
+//			species mosquitoes aspect: default ;
+//			species outbreaks aspect: default ;
+//		}
+
+		display Charts refresh: cycle < 60 axes: true {
+			chart "Mosquitoes" type: series background: #white position: {0,0} style: exploded x_label: "Days" {
+				data "Susceptible" value: mosquitoes count (each.state = 0) color: #green;
+				data "Exposed" value: mosquitoes count (each.state = 1) color: #yellow;
+				data "Infected" value: mosquitoes count (each.state = 2) color: #red;	
+			}
+			
+			chart "Humans" type: series background: #white position: {0,0} style: exploded x_label: "Days" {
+				data "Susceptible" value: people count (each.state = 0) color: #yellow;
+				data "Infected" value: people count (each.state = 1) color: #red;
+				data "Recovered" value: people count (each.state = 2) color: #green;
 			}
 		}
+//		display chart refresh: cycle < 60 axes: false {
+//			chart "Humans" type: series background: #white position: {0,0} style: exploded x_label: "Days" {
+//				data "Susceptible" value: people count (each.state = 0) color: #yellow;
+//				data "Infected" value: people count (each.state = 1) color: #red;
+//				data "Recovered" value: people count (each.state = 2) color: #green;
+//			}
+//		}
 	}
 }
 
