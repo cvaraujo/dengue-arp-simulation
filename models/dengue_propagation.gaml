@@ -136,7 +136,7 @@ global {
 			}
 		
 			ask outbreaks {
-				save [name, id, active, eggs, road_location.id_key, location.x, location.y, length(start_outbreak_roads)] to: outbreaks_csv_filename_output type: csv
+				save [name, id, active, eggs, road_location.id_key, location.x, location.y, length(start_outbreak_roads)] to: outbreaks_csv_filename type: csv
 				rewrite: (int(self) = 0) ? true : false header: true;
 			}
 		}
@@ -195,7 +195,7 @@ global {
 				state <- 0;
 			}
 			ask mosquitoes {
-				save [name, id, speed, state, current_road.id_key, start_outbreak.id, location.x, location.y] to: mosquitoes_csv_filename_output type: csv 
+				save [name, id, speed, state, current_road.id_key, start_outbreak.id, location.x, location.y] to: mosquitoes_csv_filename type: csv 
 				rewrite: (int(self) = 0) ? true : false header: true;
 			}
 		}
@@ -253,7 +253,7 @@ global {
 				state <- 1;
 			}
 			ask people {
-				save [name, id, objective, speed, state, living_place.id_key, working_place.id_key, start_work, end_work, location.x, location.y] to: people_csv_filename_output type: csv
+				save [name, id, objective, speed, state, living_place.id_key, working_place.id_key, start_work, end_work, location.x, location.y] to: people_csv_filename type: csv
 				rewrite: (int(self) = 0) ? true : false header: true;
 			}
 		}		
