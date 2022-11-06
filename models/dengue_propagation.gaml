@@ -132,7 +132,12 @@ global {
 				road_location <- one_of(outbreak_roads);
 				location <- any_location_in(road_location);
 				start_outbreak_roads <- road at_distance(max_move_radius);
-				eggs <- rnd(1, 10) * mosquitoes_max_carrying_capacity;
+				eggs <- rnd(0, 1) * mosquitoes_max_carrying_capacity;
+			}
+		
+			ask outbreaks {
+				save [name, id, active, eggs, road_location.id_key, location.x, location.y, length(start_outbreak_roads)] to: outbreaks_csv_filename_output type: csv
+				rewrite: (int(self) = 0) ? true : false header: true;
 			}
 		}
 		
