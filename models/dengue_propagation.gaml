@@ -124,7 +124,6 @@ global {
 				}
 			}
 			cnt_outbreaks <- nb_outbreaks;
-			
 		} else {
 			outbreak_roads <- nb_outbreaks among road;
 			
@@ -149,6 +148,11 @@ global {
 			// Creation of the people agents
 			loop mosquito over: mosquitoes_data {
 				list<string> line <- string(mosquito) split_with ',';
+				int id_mosquito <- int(line[1]);
+				
+				if id_mosquito > cnt_mosquitoes {
+					cnt_mosquitoes <- id_mosquito + 1;
+				}
 				
 				if line[2] = "2" {
 					nb_infected_mosquitoes <- nb_infected_mosquitoes + 1;
@@ -159,7 +163,7 @@ global {
 				create mosquitoes {
 					// Mandatory informations
 					name <- line[0];
-					id <- int(line[1]);
+					id <- id_mosquito;
 					// Speed
 					speed <- line[2] = "nil" ? rnd(people_min_speed, people_max_speed) : float(line[2]);
 					// initial state
@@ -282,7 +286,7 @@ species outbreaks {
 		}
 	}
 		
-	reflex adult_offspring when: every(2 #cycles) and active = true {
+	reflex adult_offspring when: every(1 #cycles) and active = true {
 		if eggs > 0 {
 			int num_new_mosquitoes <- round(eggs_to_mosquitoes * eggs);
 			eggs <- eggs - num_new_mosquitoes;
@@ -298,7 +302,7 @@ species outbreaks {
 		}
 	}
 	
-	reflex aquatic_phase_death when: every(2 #cycles) and active = true {
+	reflex aquatic_phase_death when: every(1 #cycles) and active = true {
 		if eggs > 0 {
 			int aquatic_elimination <- round(aquatic_phase_mortality_rate * eggs);
 			eggs <- eggs - aquatic_elimination;
@@ -410,6 +414,7 @@ species mosquitoes skills: [moving] {
 	init {
 		if id = -1 {
 			id <- cnt_mosquitoes;
+			name <- "mosquitoes" + string(cnt_mosquitoes);
 			cnt_mosquitoes <- cnt_mosquitoes + 1;
 		}
 	}
@@ -446,7 +451,7 @@ species mosquitoes skills: [moving] {
 		state <- 2;
 	}
 	
-	reflex die when: every(2 #cycles) and flip(mosquitoes_death_rate) {
+	reflex die when: every(1 #cycles) and flip(mosquitoes_death_rate) {
 		do die;
 	}
 	
