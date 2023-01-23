@@ -55,7 +55,7 @@ global {
 	// ----------------------------------------------------------
 	string default_simulation_data <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/";
 	string deafult_species_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_0/species_data/";
-	string default_next_species_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_2/species_data/";
+	string default_next_species_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_0/species_data/";
 	string default_routes_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_0/route/";
 	string deafult_species_alg_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_0/species_data_after_alg/";
 	
@@ -537,7 +537,8 @@ species saver {
 	// 0 - save every cycle without external modification.
 	// 1 - save every day without external modification.
 	// 2 - save every day with an external modification.
-	// 3 - save every first week day with an external modification.
+	// 3 - save every first week day
+	// 4 - save every first week day with an external modification.
 	
 	action write_species(bool is_alg_output) {
 		deafult_species_dir <- default_simulation_data + "cycle_" + string(cycle_id) + "/scenario_" + string(scenario_id) + "/species_data/";
@@ -619,19 +620,22 @@ species saver {
 	reflex save_days_with_algorithm when:
 		(
 			(application_pattern = 2 and even(cycle_id)) or
-			(application_pattern = 3 and mod(cycle_id, 14) = 0)
+			(application_pattern in [3, 4] and mod(cycle_id, 14) = 0)
 		) and
 			cycle_id < max_cycles
 	{
 		
-		do write_species(is_alg_output: false);                
-		csv_file csv_routes <- wait_algorithm();
-		 
-		loop street over: csv_routes {
-			do update_species(street: int(street));
-		}
-		 
-		do write_species(is_alg_output: true);		 
+		do write_species(is_alg_output: false);
+				
+		if(application_pattern in [2, 4]) {                
+			csv_file csv_routes <- wait_algorithm();
+			 
+			loop street over: csv_routes {
+				do update_species(street: int(street));
+			}
+			 
+			do write_species(is_alg_output: true);
+		}	 
 	}
 }
 
@@ -685,10 +689,10 @@ experiment dengue_propagation type: gui {
 	}
 }
 
-experiment headless_dengue_propagation type: batch until: cycle = 8 repeat: 1 {
+experiment headless_dengue_propagation type: batch until: cycle = 30 repeat: 1 {
 	parameter "Shapefile for the buildings" var: building_filename category: "string";
 	parameter "Shapefile for the roads" var: road_filename category: "string";
-	parameter "Current cycle id" var: cycle_id category: "int" init: 0;
+	parameter "Current cycle id" var: cycle_id category: "int" init: 14;
 	parameter "Scenario id" var: scenario_id category: "int" init: 2;
 	parameter "Start simulation from algorithm scenario" var: start_from_alg category: "bool" init: false;
 	parameter "Number of outbreak agents" var: nb_outbreaks category: "outbreak" init: 5;
@@ -698,14 +702,14 @@ experiment headless_dengue_propagation type: batch until: cycle = 8 repeat: 1 {
 	parameter "Number of infected mosquitoes agents" var: nb_infected_mosquitoes category: "mosquitoes" init: 20;
 	parameter "Mosquitoes move probability" var: mosquitoes_move_probability category: "mosquitoes" init: 0.5;
 	parameter "Maximum radius" var: max_move_radius category: "mosquitoes" init: 200 #m;
-	parameter "Base simulation output dir" var: default_simulation_data category: "string";
-	parameter "Species output dir" var: deafult_species_dir category: "string";
-	parameter "Next species output dir" var: default_next_species_dir category: "string";
-	parameter "Routes dir" var: default_routes_dir category: "string";
-	parameter "Species after algorithm output dir" var: deafult_species_alg_dir category: "string";
+	parameter "Base simulation output dir" var: default_simulation_data category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/";
+	parameter "Species output dir" var: deafult_species_dir category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_14/scenario_0/species_data/";
+	parameter "Next species output dir" var: default_next_species_dir category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_14/scenario_2/species_data/";
+	parameter "Routes dir" var: default_routes_dir category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_14/scenario_2/route/";
+	parameter "Species after algorithm output dir" var: deafult_species_alg_dir category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_14/scenario_2/species_data_after_alg/";
 	parameter "Insecticide efficiency on mosquitoes" var: insecticide_efficiency_mosquito category: "saver" init: 0.7;
 	parameter "Insecticide efficiency on outbreaks" var: insecticide_efficiency_outbreak category: "saver" init: 0.0;
-	parameter "Maximum number of cycles" var: max_cycles category: "int" init: 8;
-	parameter "Pattern to save the cycles" var: application_pattern category: "saver" init: 2;
+	parameter "Maximum number of cycles" var: max_cycles category: "int" init: 30;
+	parameter "Pattern to save the cycles" var: application_pattern category: "saver" init: 3;
 }
 
