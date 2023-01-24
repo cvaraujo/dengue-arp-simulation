@@ -54,10 +54,10 @@ global {
 	// ------------------ Default Directories -------------------
 	// ----------------------------------------------------------
 	string default_simulation_data <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/";
-	string deafult_species_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_0/species_data/";
-	string default_next_species_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_0/species_data/";
-	string default_routes_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_0/route/";
-	string deafult_species_alg_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_0/species_data_after_alg/";
+	string default_species_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_0/species_data";
+	string default_next_species_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_0/species_data";
+	string default_routes_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_0/route";
+	string default_species_alg_dir <- "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_0/scenario_0/species_data_after_alg";
 	
 	// ----------------------------------------------------------
 	// ---------------- People global parameters ----------------
@@ -73,7 +73,7 @@ global {
 	float people_max_speed <- 40.0 #km / #h;
 	
 	// Probabilities
-	float poeple_daily_recovery_rate <- 0.143;
+	float people_daily_recovery_rate <- 0.143;
 	
 	// ----------------------------------------------------------
 	// -------------- Mosquitoes global parameters --------------
@@ -91,7 +91,7 @@ global {
 	float mosquitoes_oviposition_rate <- 0.2;
 	int mosquitoes_max_carrying_capacity <- 3;
 	
-	// Prabability of move
+	// Probability of move
 	float mosquitoes_move_probability <- 0.5;
 	
 	// Default move radius
@@ -128,16 +128,16 @@ global {
 		create road from: road_shapefile with: [osmid::string(read("osmid")), id_key::int(read("id_key"))];
 		
 		// Get the path to the start data
-		string mosquitoes_filename <- deafult_species_dir + "mosquitoes.csv";
-		string outbreaks_filename <- deafult_species_dir + "outbreaks.csv";
-		string people_filename <- deafult_species_dir + "people.csv";
+		string mosquitoes_filename <- default_species_dir + "/mosquitoes.csv";
+		string outbreaks_filename <- default_species_dir + "/outbreaks.csv";
+		string people_filename <- default_species_dir + "/people.csv";
 		
 		// If is to continue from a simulation
 		if cycle_id != -1 {
 			// Overwrite by the algorithm data
 			if(start_from_alg) {
-				mosquitoes_filename <- deafult_species_alg_dir + "mosquitoes.csv";
-				outbreaks_filename <- deafult_species_alg_dir + "outbreaks.csv";
+				mosquitoes_filename <- default_species_alg_dir + "/mosquitoes.csv";
+				outbreaks_filename <- default_species_alg_dir + "/outbreaks.csv";
 			}
 			
 			write "---------------";
@@ -157,7 +157,7 @@ global {
 					nb_outbreaks <- nb_outbreaks + 1;
 					
 					create outbreaks {
-						// Mandatory informations
+						// Mandatory information
 						name <- line[0];
 						id <- int(line[1]);
 						// Active
@@ -177,7 +177,7 @@ global {
 				// Write CSV
 				ask outbreaks {
 					save [name, id, active, eggs, road_location.id_key, location.x, location.y, length(start_outbreak_roads)]
-						to: default_next_species_dir + "outbreaks.csv" type: csv rewrite: (int(self) = 0) ? true : false header: true;
+						to: default_next_species_dir + "/outbreaks.csv" type: csv rewrite: (int(self) = 0) ? true : false header: true;
 				}
 			
 				// Mosquitoes
@@ -197,7 +197,7 @@ global {
 					}
 					
 					create mosquitoes {
-						// Mandatory informations
+						// Mandatory information
 						name <- line[0];
 						id <- id_mosquito;
 						// Speed
@@ -220,7 +220,7 @@ global {
 				// Write CSV
 				ask mosquitoes {
 					save [name, id, speed, state, current_road.id_key, start_outbreak.id, location.x, location.y]
-						to: default_next_species_dir + "mosquitoes.csv" type: csv rewrite: (int(self) = 0) ? true : false header: true;
+						to: default_next_species_dir + "/mosquitoes.csv" type: csv rewrite: (int(self) = 0) ? true : false header: true;
 				}
 				
 				// People
@@ -233,7 +233,7 @@ global {
 					}
 					
 					create people {
-						// Mandatory informations
+						// Mandatory information
 						name <- line[0];
 						id <- int(line[1]);
 						objective <- line[2];
@@ -256,17 +256,18 @@ global {
 				//
 				ask people {
 					save [name, id, objective, speed, state, living_place.id_key, working_place.id_key, start_work, end_work, location.x, location.y]
-						to: default_next_species_dir + "people.csv" type: csv rewrite: (int(self) = 0) ? true : false header: true;
+						to: default_next_species_dir + "/people.csv" type: csv rewrite: (int(self) = 0) ? true : false header: true;
 				}
 			} else {
+				write "[!] Error to load data!";
 				do die;
 			}
 		} else {		
 			// Create the default initial folders
-			if !folder_exists(deafult_species_dir) {
-				file new_dir <- new_folder(deafult_species_dir);
+			if !folder_exists(default_species_dir) {
+				file new_dir <- new_folder(default_species_dir);
 				new_dir <- new_folder(default_routes_dir);
-				new_dir <- new_folder(deafult_species_alg_dir);
+				new_dir <- new_folder(default_species_alg_dir);
 			}
 						
 			// Create outbreaks
@@ -381,7 +382,7 @@ species people skills: [moving]{
 	// Working parameters
 	int start_work;
 	int end_work;
-	// Curent location
+	// Current location
 	point location;
 	// Working and living place
 	road living_place;
@@ -390,7 +391,7 @@ species people skills: [moving]{
 	point target;
 	// Speed of the agent
 	float speed <- (people_min_speed + rnd(people_max_speed)) #km / #h;
-	// Currante state (susceptible = 0, infected = 1 or recovered = 2)
+	// Current state (susceptible = 0, infected = 1 or recovered = 2)
 	int state <- 0;
 	
 	init {
@@ -433,7 +434,7 @@ species people skills: [moving]{
 	}
 	
 	// Reflex to change the state of the agent to recovered
-	reflex change_to_recovered_state when: state = 1 and flip(poeple_daily_recovery_rate) {
+	reflex change_to_recovered_state when: state = 1 and flip(people_daily_recovery_rate) {
 		state <- 2;
 	}
 	
@@ -541,26 +542,26 @@ species saver {
 	// 4 - save every first week day with an external modification.
 	
 	action write_species(bool is_alg_output) {
-		deafult_species_dir <- default_simulation_data + "cycle_" + string(cycle_id) + "/scenario_" + string(scenario_id) + "/species_data/";
+		default_species_dir <- default_simulation_data + "/cycle_" + string(cycle_id) + "/scenario_" + string(scenario_id) + "/species_data/";
 		
-		if !folder_exists(deafult_species_dir) {
-			default_routes_dir <- default_simulation_data + "cycle_" + string(cycle_id) + "/scenario_" + string(scenario_id) + "/route/";
-			deafult_species_alg_dir <- default_simulation_data + "cycle_" + string(cycle_id) + "/scenario_" + string(scenario_id) + "/species_data_after_alg/";
+		if !folder_exists(default_species_dir) {
+			default_routes_dir <- default_simulation_data + "/cycle_" + string(cycle_id) + "/scenario_" + string(scenario_id) + "/route/";
+			default_species_alg_dir <- default_simulation_data + "/cycle_" + string(cycle_id) + "/scenario_" + string(scenario_id) + "/species_data_after_alg/";
 			
-			file new_dir <- new_folder(deafult_species_dir);
+			file new_dir <- new_folder(default_species_dir);
 			new_dir <- new_folder(default_routes_dir);
-			new_dir <- new_folder(deafult_species_alg_dir);
+			new_dir <- new_folder(default_species_alg_dir);
 		}
 		
-		string mosquitoes_filename <- deafult_species_dir + "mosquitoes.csv";
-		string outbreaks_filename <- deafult_species_dir + "outbreaks.csv";
-		string people_filename <- deafult_species_dir + "people.csv";
+		string mosquitoes_filename <- default_species_dir + "mosquitoes.csv";
+		string outbreaks_filename <- default_species_dir + "outbreaks.csv";
+		string people_filename <- default_species_dir + "people.csv";
 		
 		write "SAVED: " + mosquitoes_filename + ", CYCLE: " + string(cycle) + ", CYCLE_ID: " + string(cycle_id);
 		
 		if(is_alg_output) {
-			mosquitoes_filename <- deafult_species_alg_dir + "mosquitoes.csv";
-			outbreaks_filename <- deafult_species_alg_dir + "outbreaks.csv";
+			mosquitoes_filename <- default_species_alg_dir + "mosquitoes.csv";
+			outbreaks_filename <- default_species_alg_dir + "outbreaks.csv";
 		} else {
 			ask people {
 				save [name, id, objective, speed, state, living_place.id_key, working_place.id_key, start_work, end_work, location.x, location.y]
@@ -689,7 +690,7 @@ experiment dengue_propagation type: gui {
 	}
 }
 
-experiment headless_dengue_propagation type: batch until: cycle = 30 repeat: 1 {
+experiment headless_dengue_propagation type: batch until: cycle = max_cycles repeat: 1 {
 	parameter "Shapefile for the buildings" var: building_filename category: "string";
 	parameter "Shapefile for the roads" var: road_filename category: "string";
 	parameter "Current cycle id" var: cycle_id category: "int" init: 14;
@@ -702,11 +703,11 @@ experiment headless_dengue_propagation type: batch until: cycle = 30 repeat: 1 {
 	parameter "Number of infected mosquitoes agents" var: nb_infected_mosquitoes category: "mosquitoes" init: 20;
 	parameter "Mosquitoes move probability" var: mosquitoes_move_probability category: "mosquitoes" init: 0.5;
 	parameter "Maximum radius" var: max_move_radius category: "mosquitoes" init: 200 #m;
-	parameter "Base simulation output dir" var: default_simulation_data category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/";
-	parameter "Species output dir" var: deafult_species_dir category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_14/scenario_0/species_data/";
-	parameter "Next species output dir" var: default_next_species_dir category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_14/scenario_2/species_data/";
-	parameter "Routes dir" var: default_routes_dir category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_14/scenario_2/route/";
-	parameter "Species after algorithm output dir" var: deafult_species_alg_dir category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_14/scenario_2/species_data_after_alg/";
+	parameter "Base simulation output dir" var: default_simulation_data category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0";
+	parameter "Species output dir" var: default_species_dir category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_14/scenario_0/species_data";
+	parameter "Next species output dir" var: default_next_species_dir category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_14/scenario_2/species_data";
+	parameter "Routes dir" var: default_routes_dir category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_14/scenario_2/route";
+	parameter "Species after algorithm output dir" var: default_species_alg_dir category: "string" init: "/home/carlos/Documents/phd/code/dengue-arp-tool/temp/simulation_0/cycle_14/scenario_2/species_data_after_alg";
 	parameter "Insecticide efficiency on mosquitoes" var: insecticide_efficiency_mosquito category: "saver" init: 0.7;
 	parameter "Insecticide efficiency on outbreaks" var: insecticide_efficiency_outbreak category: "saver" init: 0.0;
 	parameter "Maximum number of cycles" var: max_cycles category: "int" init: 30;
