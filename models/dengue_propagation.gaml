@@ -146,22 +146,22 @@ global {
 	// ----------------------------------------------------------
 	// Load actions
 	action load_breeding_sites(csv_file bs_data){
-		loop breeding_site over: bs_data {
+		loop breeding_site over: bs_data {			
 			list<string> line <- string(breeding_site) split_with ',';
 			nb_breeding_sites <- nb_breeding_sites + 1;
 	
 			create BreedingSites {
 				// Mandatory information
-				name <- line[0];
-				id <- int(line[1]);
+				id <- line[1] != "-1" ? int(line[1]) : nb_breeding_sites;
+				name <- line[0] != "-1" ? line[0] : "BreedingSite" + string(nb_breeding_sites);
 				// Active
-				active <- bool(line[2]);
+				active <- line[2] != "-1" ? bool(line[2]) : true;
 				// initial state
-				eggs <- int(line[3]);
+				eggs <- line[3] != "-1" ? int(line[3]) : 0;
 				// current edge
-				building_location <- one_of(Buildings where (each.id = int(line[4])));
+				building_location <- line[4] != "-1" ? one_of(Buildings where (each.id = int(line[4]))) : one_of(Buildings);
 				// Current location
-				location <- point(float(line[5]), float(line[6]));
+				location <- (line[5] != "-1" and line[6] != "-1") ? point(float(line[5]), float(line[6])) : any_location_in(building_location);
 				// Roads
 				buildings <- Buildings at_distance(max_move_radius);
 			}
@@ -173,7 +173,7 @@ global {
 		cnt_mosquitoes <- 0;
 		loop mosquito over: mosquitoes_data {
 			list<string> line <- string(mosquito) split_with ',';
-			int id_mosquito <- int(line[1]);
+			int id_mosquito <- line[1] != "-1" ? int(line[1]) : cnt_mosquitoes;
 			
 			if id_mosquito > cnt_mosquitoes {
 				cnt_mosquitoes <- id_mosquito + 1;
@@ -187,18 +187,18 @@ global {
 						
 			create Mosquitoes {
 				// Mandatory information
-				name <- line[0];
+				name <- line[0] != "-1" ? line[0] : "Mosquitoes" + string(id_mosquito);
 				id <- id_mosquito;
 				// Speed
 				speed <- float(line[2]);
 				// initial state
-				state <- int(line[3]);
+				state <- line[3] != "-1" ? int(line[3]) : 0;
 				// current edge
-				current_building <- one_of(Buildings where (each.id = int(line[4])));
+				current_building <- line[4] != "-1" ? one_of(Buildings where (each.id = int(line[4]))) : one_of(Buildings);
 				// Working place
-				breeding_site <- one_of(BreedingSites where (each.id = int(line[5])));
+				breeding_site <- line[5] != "-1" ? one_of(BreedingSites where (each.id = int(line[5]))) : one_of(BreedingSites);
 				// Current location
-				location <- point(float(line[6]), float(line[7]));
+				location <- (line[6] != "-1" and line[7] != "-1") ? point(float(line[6]), float(line[7])) : any_location_in(current_building);
 			}
 		}
 	}
@@ -223,14 +223,14 @@ global {
 				// initial state
 				state <- int(line[4]);
 				// Living place
-				living_place<- one_of(Buildings where (each.id = int(line[5])));
+				living_place <- line[5] != "-1" ? one_of(Buildings where (each.id = int(line[5]))) : one_of(Buildings);
 				// Working place
-				working_place<- one_of(Buildings where (each.id = int(line[6])));
+				working_place <- line[6] != "-1" ? one_of(Buildings where (each.id = int(line[6]))) : one_of(Buildings);
 				// Set work hours
-				start_work <- int(line[7]);
-				end_work <- int(line[8]);
+				start_work <- line[7] != "-1" ? int(line[7]) : -1;
+				end_work <- line[8] != "-1" ? int(line[8]) : -1;
 				// Current location
-				location <- point(float(line[9]), float(line[10]));
+				location <- (line[9] != "-1" and line[10] != "-1") ? point(float(line[9]), float(line[10])) : any_location_in(living_place);
 			}
 		}
 		cnt_people <- nb_people + nb_infected_people;
@@ -242,8 +242,8 @@ global {
 	
 			create Eggs {
 				// Mandatory information
-				breeding_site <- one_of(BreedingSites where (each.id = int(line[0])));
-				deposited_days <- float(line[1]);
+				breeding_site <- line[0] != "-1" ? one_of(BreedingSites where (each.id = int(line[0]))) : one_of(BreedingSites);
+				deposited_days <- line[1] != "-1" ? float(line[1]) : 0;
 			}
 		}
 	}
@@ -360,6 +360,14 @@ global {
 		string people_filename <- default_species_dir + "/people.csv";
 		string eggs_filename <- default_species_dir + "/eggs.csv";
 		
+		// Create the street blocks that turns into Buildings
+		if !file_exists(building_filename) {
+			do create_street_blocks_and_save;			
+		} else {
+			building_shapefile <- file(building_filename);
+			create Buildings from: building_shapefile with: [name::read("name"), id::int(read("id")), location::read("location")];
+		}
+		
 		// If is to continue from a simulation
 		if start_from_old_simulation {
 			// Overwrite default directories
@@ -391,14 +399,6 @@ global {
 				file new_dir <- new_folder(default_species_dir);
 				new_dir <- new_folder(default_routes_dir);
 				new_dir <- new_folder(default_species_alg_dir);
-			}
-			
-			// Creathe the street blocks that turns into Buildings
-			if !file_exists(building_filename) {
-				do create_street_blocks_and_save;			
-			} else {
-				building_shapefile <- file(building_filename);
-				create Buildings from: building_shapefile with: [name::read("name"), id::int(read("id")), location::read("location")];
 			}
 			
 			// Create the starting Scenario
@@ -481,8 +481,8 @@ species People skills: [moving]{
 	// Objective (resting or working)
 	string objective <- "resting";
 	// Working parameters
-	int start_work;
-	int end_work;
+	int start_work <- -1;
+	int end_work <- -1;
 	// Current location
 	point location;
 	// Working and living place
@@ -491,7 +491,7 @@ species People skills: [moving]{
 	// Target point of the agent
 	point target;
 	// Speed of the agent
-	float speed <- (people_min_speed + rnd(people_max_speed)) #km / #h;
+	float speed <- -1.0;
 	// (SIR) Current state (susceptible = 0, infected = 1 or recovered = 2)
 	int state <- 0;
 	
@@ -499,6 +499,15 @@ species People skills: [moving]{
 		if id = -1 {
 			id <- cnt_people;
 			cnt_people <- cnt_people + 1;
+		}
+		
+		if speed = -1.0 {
+			speed <- (people_min_speed + rnd(people_max_speed)) #km / #h;
+		}
+		
+		if start_work = -1 or end_work = -1 {
+			start_work <- rnd(min_work_start, max_work_start);
+			end_work <- rnd(min_work_end, max_work_end);
 		}
 	}
 	
@@ -556,7 +565,7 @@ species Mosquitoes skills: [moving] {
 	// Id
 	int id <- -1;
 	// Default speed of the agent
-	float speed <- (mosquitoes_min_speed + rnd(mosquitoes_max_speed)) #km / #h;
+	float speed;
 	// (SEI) State (susceptible = 0, exposed = 1 or infected = 2)
 	int state <- 0;
 	// Target
@@ -573,6 +582,9 @@ species Mosquitoes skills: [moving] {
 			id <- cnt_mosquitoes;
 			name <- "mosquitoes" + string(cnt_mosquitoes);
 			cnt_mosquitoes <- cnt_mosquitoes + 1;
+		}
+		if speed = -1.0 {
+			speed <- (mosquitoes_min_speed + rnd(mosquitoes_max_speed)) #km / #h;
 		}
 	}
 
