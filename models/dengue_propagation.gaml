@@ -28,7 +28,7 @@ global {
 	// Map network
 	graph road_network;
 	// Load data from old simulation
-	bool start_from_old_simulation <- false;
+	bool start_from_old_simulation <- true;
 	// Number of saves
 	int nb_saves <- 2;
 	// Current save
@@ -161,12 +161,12 @@ global {
 				// current edge
 				building_location <- line[4] != "-1" ? one_of(Buildings where (each.id = int(line[4]))) : one_of(Buildings);
 				// Current location
-				location <- (line[5] != "-1" and line[6] != "-1") ? point(float(line[5]), float(line[6])) : any_location_in(building_location);
+				location <- (line[5] != "-1.0" and line[6] != "-1.0") ? point(float(line[5]), float(line[6])) : any_location_in(building_location);
 				// Roads
 				buildings <- Buildings at_distance(max_move_radius);
 			}
 		}
-		cnt_breeding_sites <- nb_breeding_sites ;
+		cnt_breeding_sites <- nb_breeding_sites;
 	}
 	
 	action load_mosquitoes(csv_file mosquitoes_data){
@@ -190,7 +190,7 @@ global {
 				name <- line[0] != "-1" ? line[0] : "Mosquitoes" + string(id_mosquito);
 				id <- id_mosquito;
 				// Speed
-				speed <- float(line[2]);
+				speed <- line[2] != "-1.0" ? float(line[2]) : (mosquitoes_min_speed + rnd(mosquitoes_max_speed)) #km / #h;
 				// initial state
 				state <- line[3] != "-1" ? int(line[3]) : 0;
 				// current edge
@@ -198,7 +198,7 @@ global {
 				// Working place
 				breeding_site <- line[5] != "-1" ? one_of(BreedingSites where (each.id = int(line[5]))) : one_of(BreedingSites);
 				// Current location
-				location <- (line[6] != "-1" and line[7] != "-1") ? point(float(line[6]), float(line[7])) : any_location_in(current_building);
+				location <- (line[6] != "-1.0" and line[7] != "-1.0") ? point(float(line[6]), float(line[7])) : any_location_in(current_building);
 			}
 		}
 	}
@@ -219,18 +219,18 @@ global {
 				id <- int(line[1]);
 				objective <- line[2];
 				// Speed
-				speed <- float(line[3]);
+				speed <- line[3] != "-1.0" ? float(line[3]) : (people_min_speed + rnd(people_max_speed)) #km / #h;
 				// initial state
-				state <- int(line[4]);
+				state <- line[4] != "-1" ? int(line[4]) : 0;
 				// Living place
 				living_place <- line[5] != "-1" ? one_of(Buildings where (each.id = int(line[5]))) : one_of(Buildings);
 				// Working place
 				working_place <- line[6] != "-1" ? one_of(Buildings where (each.id = int(line[6]))) : one_of(Buildings);
 				// Set work hours
-				start_work <- line[7] != "-1" ? int(line[7]) : -1;
-				end_work <- line[8] != "-1" ? int(line[8]) : -1;
+				start_work <- line[7] != "-1" ? int(line[7]) : rnd(min_work_start, max_work_start);
+				end_work <- line[8] != "-1" ? int(line[8]) : rnd(min_work_end, max_work_end);
 				// Current location
-				location <- (line[9] != "-1" and line[10] != "-1") ? point(float(line[9]), float(line[10])) : any_location_in(living_place);
+				location <- (line[9] != "-1.0" and line[10] != "-1.0") ? point(float(line[9]), float(line[10])) : any_location_in(living_place);
 			}
 		}
 		cnt_people <- nb_people + nb_infected_people;
@@ -347,7 +347,7 @@ global {
 						
 		// Load the roads
 		create Roads from: road_shapefile with: [osmid::string(read("osmid")), id::int(read("id_key")), block_id::int(read("block"))];
-		
+
 		// Vertex
 		create Vertices from: node_shapefile;
 		
@@ -491,7 +491,7 @@ species People skills: [moving]{
 	// Target point of the agent
 	point target;
 	// Speed of the agent
-	float speed <- -1.0;
+	float speed;
 	// (SIR) Current state (susceptible = 0, infected = 1 or recovered = 2)
 	int state <- 0;
 	
@@ -499,15 +499,6 @@ species People skills: [moving]{
 		if id = -1 {
 			id <- cnt_people;
 			cnt_people <- cnt_people + 1;
-		}
-		
-		if speed = -1.0 {
-			speed <- (people_min_speed + rnd(people_max_speed)) #km / #h;
-		}
-		
-		if start_work = -1 or end_work = -1 {
-			start_work <- rnd(min_work_start, max_work_start);
-			end_work <- rnd(min_work_end, max_work_end);
 		}
 	}
 	
@@ -582,9 +573,6 @@ species Mosquitoes skills: [moving] {
 			id <- cnt_mosquitoes;
 			name <- "mosquitoes" + string(cnt_mosquitoes);
 			cnt_mosquitoes <- cnt_mosquitoes + 1;
-		}
-		if speed = -1.0 {
-			speed <- (mosquitoes_min_speed + rnd(mosquitoes_max_speed)) #km / #h;
 		}
 	}
 
@@ -662,7 +650,7 @@ species Saver {
 		string eggs_filename <- default_species_dir + "eggs.csv";
 		
 		// Log info
-		write "SAVED CYCLE: " + string(cycle) + ", CYCLE_ID: " + string(cycle_id) + ", CURR_SAVE: " + curr_save;
+		write "SAVED CYCLE: " + string(#cycle) + ", CYCLE_ID: " + string(cycle_id) + ", CURR_SAVE: " + curr_save;
 		write "Date: " + start_date plus_hours (12 * cycle_id);
 		
 		if(is_alg_output = true) {
@@ -806,6 +794,7 @@ experiment dengue_propagation type: gui {
 			species People aspect: default ;
 			species Mosquitoes aspect: default ;
 			species BreedingSites aspect: default ;
+//			species Buildings aspect: default ;
 		}
 
 //		display Charts refresh: cycle < 60 axes: true {
