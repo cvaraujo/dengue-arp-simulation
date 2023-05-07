@@ -13,10 +13,12 @@ global {
 	// ----------------------------------------------------------
 	// Step size
 	float step <- 12 #h;
+	// Start date string
+	string start_date_str <- "2023-01-01";
 	// Simulation start date
-	date start_date <- date("2023-01-01, 05:00 AM", "yyyy-MM-dd, hh:mm a");
+	date start_date <- date(start_date_str + ", 05:00 AM", "yyyy-MM-dd, hh:mm a");
 	// Max number of cycles
-	int max_cycles <- 7;
+	int max_cycles <- 60;
 	// Cycle to start execution
 	int cycle_id <- -1 update: cycle_id + 1;
 	// Scenario
@@ -24,15 +26,17 @@ global {
 	// Start the simulation with the data modified by an external algorithm
 	bool start_from_alg <- false;
 	// Auxiliar variable to instance generation
-	bool save_only_start_end <- true;
+	bool save_only_start_end <- false;
 	// Map network
 	graph road_network;
 	// Load data from old simulation
 	bool start_from_old_simulation <- true;
 	// Number of saves
-	int nb_saves <- 2;
+	int nb_saves <- 61;
 	// Current save
 	int curr_save <- 0;
+	// Fill missing data
+	bool fill_missing_data <- true;
 	
 	// ----------------------------------------------------------------
 	// Save pattern
@@ -120,7 +124,7 @@ global {
 	// Oviposition capacity
 	int mosquitoes_max_carrying_capacity <- 3;
 	// Max move distance
-	float max_move_radius <- 50.0 #m;
+	float max_move_radius <- 100.0 #m;
 	
 	// ----------------------------------------------------------
 	// ------------- Breeding site global parameters ------------
@@ -145,11 +149,13 @@ global {
 	// ---------------------- Global action ---------------------
 	// ----------------------------------------------------------
 	// Load actions
-	action load_breeding_sites(csv_file bs_data){
+	action load_breeding_sites(string breeding_sites_filename){
+		csv_file bs_data <- csv_file(breeding_sites_filename, ";", true);
+		
 		loop breeding_site over: bs_data {			
 			list<string> line <- string(breeding_site) split_with ',';
 			nb_breeding_sites <- nb_breeding_sites + 1;
-	
+
 			create BreedingSites {
 				// Mandatory information
 				id <- line[1] != "-1" ? int(line[1]) : nb_breeding_sites;
@@ -167,9 +173,19 @@ global {
 			}
 		}
 		cnt_breeding_sites <- nb_breeding_sites;
+		
+		if fill_missing_data {
+			ask BreedingSites {
+				save [name, id, active, eggs, building_location.id, location.x, location.y]
+					to: breeding_sites_filename type: csv rewrite: (int(self) = 0) ? true : false header: true;
+			}
+		}
+		
 	}
 	
-	action load_mosquitoes(csv_file mosquitoes_data){
+	action load_mosquitoes(string mosquitoes_filename){
+		csv_file mosquitoes_data <- csv_file(mosquitoes_filename, ";", true);
+
 		cnt_mosquitoes <- 0;
 		loop mosquito over: mosquitoes_data {
 			list<string> line <- string(mosquito) split_with ',';
@@ -201,9 +217,18 @@ global {
 				location <- (line[6] != "-1.0" and line[7] != "-1.0") ? point(float(line[6]), float(line[7])) : any_location_in(current_building);
 			}
 		}
+		
+		if fill_missing_data {
+			ask Mosquitoes {
+				save [name, id, speed, state, current_building.id, breeding_site.id, location.x, location.y]
+					to: mosquitoes_filename type: csv rewrite: (int(self) = 0) ? true : false header: true;
+			}
+		}
 	}
 	
-	action load_people(csv_file people_data) {
+	action load_people(string people_filename) {
+		csv_file people_data <- csv_file(people_filename, ";", true);
+		
 		loop person over: people_data {
 			list<string> line <- string(person) split_with ',';
 			
@@ -234,9 +259,18 @@ global {
 			}
 		}
 		cnt_people <- nb_people + nb_infected_people;
+		
+		if fill_missing_data {
+			ask People {
+				save [name, id, objective, speed, state, living_place.id, working_place.id, start_work, end_work, location.x, location.y]
+					to: people_filename type: csv rewrite: (int(self) = 0) ? true : false header: true;
+			}
+		}
 	}
 	
-	action load_eggs(csv_file eggs_data) {
+	action load_eggs(string eggs_filename) {
+		csv_file eggs_data <- csv_file(eggs_filename, ";", true);
+		
 		loop eggs over: eggs_data {
 			list<string> line <- string(eggs) split_with ',';
 	
@@ -244,6 +278,13 @@ global {
 				// Mandatory information
 				breeding_site <- line[0] != "-1" ? one_of(BreedingSites where (each.id = int(line[0]))) : one_of(BreedingSites);
 				deposited_days <- line[1] != "-1" ? float(line[1]) : 0;
+			}
+		}
+		
+		if fill_missing_data {
+			ask Eggs {
+				save [breeding_site.id, deposited_days]
+					to: eggs_filename type: csv rewrite: (int(self) = 0) ? true : false header: true;
 			}
 		}
 	}
@@ -362,6 +403,8 @@ global {
 		
 		// Create the street blocks that turns into Buildings
 		if !file_exists(building_filename) {
+			write "aqui";
+			do pause;
 			do create_street_blocks_and_save;			
 		} else {
 			building_shapefile <- file(building_filename);
@@ -369,7 +412,7 @@ global {
 		}
 		
 		// If is to continue from a simulation
-		if start_from_old_simulation {
+		if start_from_old_simulation = true {
 			// Overwrite default directories
 			if(start_from_alg) {
 				mosquitoes_filename <- default_species_alg_dir + "/mosquitoes.csv";
@@ -378,17 +421,12 @@ global {
 			}
 			
 			if file_exists(people_filename) and file_exists(mosquitoes_filename) and file_exists(breeding_sites_filename) and file_exists(eggs_filename) {
-				// Open the CSV files
-				csv_file breeding_sites_data <- csv_file(breeding_sites_filename, ";", true);
-				csv_file mosquitoes_data <- csv_file(mosquitoes_filename, ";", true);
-				csv_file people_data <- csv_file(people_filename, ";", true);
-				csv_file eggs_data <- csv_file(eggs_filename, ";", true);
-				
 				// Load the species
-				do load_breeding_sites(breeding_sites_data);
-				do load_mosquitoes(mosquitoes_data);
-				do load_people(people_data);
-				do load_eggs(eggs_data);
+				do load_breeding_sites(breeding_sites_filename);
+				do load_mosquitoes(mosquitoes_filename);
+				do load_people(people_filename);
+				do load_eggs(eggs_filename);
+				curr_save <- 1;
 			} else {
 				write "[!] Error to load data!";
 				do die;
@@ -705,7 +743,7 @@ species Saver {
 		}
 	}
 		
-	reflex save_patterns_0_1 when: (application_pattern = 0) or ((application_pattern = 1) and (!even(cycle_id) or cycle_id = 0)) {
+	reflex save_patterns_0_1 when: (application_pattern = 0 and ((start_from_old_simulation and cycle_id > 0) or !start_from_old_simulation)) or ((application_pattern = 1) and (!even(cycle_id) or cycle_id = 0)) {
 		if (save_only_start_end and cycle_id in [0, max_cycles]) or !save_only_start_end {
 			curr_save <- curr_save + 1;
 			do write_species;
@@ -786,7 +824,7 @@ experiment dengue_propagation type: gui {
 	parameter "Shapefile for the buildings:" var: building_filename category: "string";
 	parameter "Shapefile for the roads:" var: road_filename category: "string";
 	parameter "Mosquitoes move probability" var: mosquitoes_move_probability category: "mosquitoes" init: 1.0;
-	parameter "Maximum radius" var: max_move_radius category: "mosquitoes" init: 50 #m;
+	parameter "Maximum radius" var: max_move_radius category: "mosquitoes" init: 100 #m;
 		
 	output {
 		display city type: opengl{
@@ -814,8 +852,10 @@ experiment dengue_propagation type: gui {
 }
 
 experiment headless_dengue_propagation type: batch until: cycle = max_cycles repeat: 1 {
+	parameter "Start Date" var: start_date_str category: "string" init: "2023-01-01";
 	parameter "Shapefile for the buildings" var: building_filename category: "string";
 	parameter "Shapefile for the roads" var: road_filename category: "string";
+	parameter "Default SHP" var: default_shp_dir category: "string" init: "../include";
 	parameter "Current cycle id" var: cycle_id category: "int" init: 0;
 	parameter "Scenario id" var: scenario_id category: "int" init: 1;
 	parameter "Start simulation from algorithm scenario" var: start_from_alg category: "bool" init: false;
@@ -835,6 +875,10 @@ experiment headless_dengue_propagation type: batch until: cycle = max_cycles rep
 	parameter "Insecticide efficiency on breeding sites" var: bs_insecticide_efficiency category: "saver" init: 0.0;
 	parameter "Maximum number of cycles" var: max_cycles category: "int" init: 8;
 	parameter "Pattern to save the cycles" var: application_pattern category: "saver" init: 1;
-	parameter "Save only the final result" var: save_only_start_end category: "saver" init: true;
+	parameter "Start from another simulation scenario" var: start_from_old_simulation category: "saver" init: true;
+	parameter "Number of states to be saved" var: nb_saves category: "saver" init: 9;
+	parameter "Save only starting and end states" var: save_only_start_end category: "saver" init: false;
+	parameter "Filling missing data" var: fill_missing_data category: "saver" init: false;
+	
 }
 
