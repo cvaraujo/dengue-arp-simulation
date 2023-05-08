@@ -206,7 +206,7 @@ global {
 				name <- line[0] != "-1" ? line[0] : "Mosquitoes" + string(id_mosquito);
 				id <- id_mosquito;
 				// Speed
-				speed <- line[2] != "-1.0" ? float(line[2]) : (mosquitoes_min_speed + rnd(mosquitoes_max_speed)) #km / #h;
+				speed <- line[2] != "-1.0" ? float(line[2]) : rnd(mosquitoes_min_speed, mosquitoes_max_speed) #km / #h;
 				// initial state
 				state <- line[3] != "-1" ? int(line[3]) : 0;
 				// current edge
@@ -426,7 +426,7 @@ global {
 				do load_mosquitoes(mosquitoes_filename);
 				do load_people(people_filename);
 				do load_eggs(eggs_filename);
-				curr_save <- 1;
+				curr_save <- 0;
 			} else {
 				write "[!] Error to load data!";
 				do die;
@@ -594,7 +594,7 @@ species Mosquitoes skills: [moving] {
 	// Id
 	int id <- -1;
 	// Default speed of the agent
-	float speed;
+	float speed <- rnd(mosquitoes_min_speed, mosquitoes_max_speed) #km / #h;
 	// (SEI) State (susceptible = 0, exposed = 1 or infected = 2)
 	int state <- 0;
 	// Target
