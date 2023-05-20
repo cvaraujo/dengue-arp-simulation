@@ -853,8 +853,6 @@ experiment dengue_propagation type: gui {
 
 experiment headless_dengue_propagation type: batch until: cycle = max_cycles repeat: 1 {
 	parameter "Start Date" var: start_date_str category: "string" init: "2023-01-01";
-	parameter "Shapefile for the buildings" var: building_filename category: "string";
-	parameter "Shapefile for the roads" var: road_filename category: "string";
 	parameter "Default SHP" var: default_shp_dir category: "string" init: "../include";
 	parameter "Current cycle id" var: cycle_id category: "int" init: 0;
 	parameter "Scenario id" var: scenario_id category: "int" init: 1;
