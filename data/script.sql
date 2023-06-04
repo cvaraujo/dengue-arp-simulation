@@ -58,9 +58,26 @@ CREATE TABLE eggs (
     deposited_days INT
 );
 
+CREATE TABLE metrics (
+    execution_id INT NOT NULL,
+    simulation_id INT NOT NULL,
+    cycle INT,
+    started_from_cycle INT DEFAULT 0,
+    specie varchar(30),
+    susceptible int DEFAULT 0,
+    exposed int DEFAULT 0,
+    infected int DEFAULT 0,
+    recovered int DEFAULT 0,
+    dead int DEFAULT 0
+);
+
 drop table eggs;
 drop table people;
 drop table mosquitoes;
 drop table breeding_sites;
+drop table metrics;
 
-select * from people where (execution_id=1);
+select * from people where simulation_id = 1 and cycle = 0 and state = 1 ORDER BY cycle DESC;
+update people SET speed=-1.0, living_place=-1,working_place=-1 where simulation_id = 1 and cycle = 0;
+
+select * from metrics;
