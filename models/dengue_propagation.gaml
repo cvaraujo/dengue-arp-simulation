@@ -27,7 +27,7 @@ global {
 	// Map network
 	graph road_network;
 	// Load data from old simulation
-	bool use_initial_scenario <- true;
+	bool use_initial_scenario <- false;
 	// Start from cycle
 	int start_from_cycle <- 0;
 	int start_from_scenario <- 1;
@@ -53,9 +53,9 @@ global {
 	int cnt_breeding_sites <- 0;
 	int cnt_mosquitoes <- 0;
 	
-	list<int> cycle_exposed_people <- list_with(max_cycles, 0);
-	list<int> cycle_infected_people <- list_with(max_cycles, 0);
-	list<int> cycle_recovered_people <- list_with(max_cycles, 0);
+	list<int> cycle_exposed_people <- list_with(max_cycles+1, 0);
+	list<int> cycle_infected_people <- list_with(max_cycles+1, 0);
+	list<int> cycle_recovered_people <- list_with(max_cycles+1, 0);
 	
 	// ----------------------------------------------------------
 	// ----------------------- Map data -------------------------
@@ -477,6 +477,10 @@ global {
 		} else {
 			do create_starting_scenario;
 			create Saver{}
+			ask Saver {
+				do connect(params: SQLITE);
+			}
+			
 		}
 	}
 }
@@ -608,7 +612,6 @@ species People skills: [moving]{
 	// Reflex to change the state of the agent to recovered
 	reflex change_to_recovered_state when: state = 1 and flip(people_daily_recovery_rate) {
 		state <- 2;
-		write "aqui" + string(cycle);
 		cycle_recovered_people[(start_from_cycle + cycle)] <- cycle_recovered_people[(start_from_cycle + cycle)] + 1;
 	}
 	
@@ -753,55 +756,145 @@ species Saver parent: AgentDB {
 			scenario_id <- int(simulation_id[1]) + 1;
 		}
 				
-		// -----------------------------------------------------------
+		// --------------------------------- Mosquitoes ---------------------------------
+		string prefix <- "(" + string(execution_id) + ", " + string(scenario_id) + ", " + string(start_from_cycle + cycle) + ", " + string(start_from_cycle);
+		string query_mosquitoes <- "INSERT INTO mosquitoes(execution_id, simulation_id, cycle, 
+			started_from_cycle, name, id, date_of_birth, speed, state, curr_building, bs_id, x, y) VALUES";
+		
+		int cnt <- 1;
+		int nb <- length(Mosquitoes);
+		
+		ask Mosquitoes {
+			query_mosquitoes <- query_mosquitoes + prefix + ", '" + self.name + "', " + string(self.id) + ", '" + string(self.date_of_birth) +
+			"' , " + string(self.speed) + ", " + string(self.state) + ", " + string(self.current_building.id) +
+			", " + string(self.breeding_site.id) + ", " + string(self.location.x) + ", " + string(self.location.y) + ")";
+			if cnt < nb {
+				query_mosquitoes <- query_mosquitoes + ", ";
+			} else {
+				query_mosquitoes <- query_mosquitoes + "; ";
+			}
+			cnt <- cnt + 1;
+		}
+		
+		// --------------------------------- People ---------------------------------	
+		string query_people <- "INSERT INTO people(execution_id, simulation_id, cycle, 
+			started_from_cycle, name, id, date_of_birth, objective, speed, state, living_place,
+			working_place, start_work_h, end_work_h, x, y) VALUES";
+		
+		cnt <- 1;
+		nb <- length(People);
+		
 		ask People {
-			ask Saver {
-				do executeUpdate updateComm: "INSERT INTO people VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" 
-					values: [
-						execution_id, scenario_id, start_from_cycle + cycle,
-						start_from_cycle, myself.name, myself.id, starting_date,
-						myself.objective, myself.speed, myself.state,
-						myself.living_place.id, myself.working_place.id,
-						myself.start_work, myself.end_work,
-						myself.location.x, myself.location.y
-					];
-	   		}
-   		}
-   		// -----------------------------------------------------------
-   		ask Mosquitoes {
-			ask Saver {
-				do executeUpdate updateComm: "INSERT INTO mosquitoes VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" 
-					values: [
-						execution_id, scenario_id, start_from_cycle + cycle,
-						start_from_cycle, myself.name, myself.id, myself.date_of_birth,
-						myself.speed, myself.state, myself.current_building.id,
-						myself.breeding_site.id, myself.location.x, myself.location.y
-					];
-	   		}
-   		}
-   		// -----------------------------------------------------------
-   		ask BreedingSites {
-			ask Saver {
-				do executeUpdate updateComm: "INSERT INTO breeding_sites VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" 
-					values: [
-						execution_id, scenario_id, start_from_cycle + cycle,
-						start_from_cycle, myself.name, myself.id, starting_date,
-						myself.active, myself.eggs, myself.building_location.id,
-						myself.location.x, myself.location.y
-					];
-	   		}
-   		}
-   		// -----------------------------------------------------------
-   		ask Eggs {
-			ask Saver {
-				do executeUpdate updateComm: "INSERT INTO eggs VALUES(?, ?, ?, ?, ?, ?, ?);" 
-					values: [
-						execution_id, scenario_id, start_from_cycle + cycle,
-						start_from_cycle, myself.deposited_date,
-						myself.breeding_site.id, myself.deposited_days
-					];
-	   		}
-   		}
+			query_people <- query_people + prefix + ", '" + string(self.name) + "', " + string(self.id) + ", '" + string(starting_date) +
+				"', '" + self.objective + "', " + string(self.speed) + ", " + string(self.state) + ", " + string(self.living_place.id) +
+				", " + string(self.working_place.id) + ", " + string(self.start_work) + ", " + string(self.end_work) + 
+				", " + string(self.location.x) + ", " + string(self.location.y) + ")";
+			
+			if cnt < nb {
+				query_people <- query_people + ", ";
+			} else {
+				query_people <- query_people + "; ";
+			}
+			cnt <- cnt + 1;
+		}
+		
+		// --------------------------------- Breeding Sites ---------------------------------	
+		string query_bs <- "INSERT INTO breeding_sites(execution_id, simulation_id, cycle, 
+			started_from_cycle, name, id, date_of_birth, active, eggs, curr_building, x, y) VALUES";
+	
+		cnt <- 1;
+		nb <- length(BreedingSites);
+		
+		ask BreedingSites {
+			query_bs <- query_bs + prefix + ", '" + string(self.name) + "', " + string(self.id) + ", '" + string(starting_date) +
+				"', " + string(self.active) + ", " + string(self.eggs) + ", " + string(self.building_location.id) +
+				", " + string(self.location.x) + ", " + string(self.location.y) + ")";
+			
+			if cnt < nb {
+				query_bs <- query_bs + ", ";
+			} else {
+				query_bs <- query_bs + "; ";
+			}
+			cnt <- cnt + 1;
+		}
+		
+		// --------------------------------- Mosquitoes ---------------------------------	
+		string query_eggs <- "INSERT INTO eggs(execution_id, simulation_id, cycle, 
+			started_from_cycle, oviposition_date, breeding_site, deposited_days) VALUES";
+	
+		cnt <- 1;
+		nb <- length(Eggs);
+		
+		ask Eggs {
+			query_eggs <- query_eggs + prefix + ", '" + string(self.deposited_date) +
+			"', " + string(self.breeding_site.id) + ", " + string(deposited_days) + ")";
+			
+			if cnt < nb {
+				query_eggs <- query_eggs + ", ";
+			} else {
+				query_eggs <- query_eggs + "; ";
+			}
+			cnt <- cnt + 1;
+		}
+		
+		if nb <= 0 {
+			query_eggs <- "";
+		}
+				
+		ask Saver {
+			do executeUpdate(
+				updateComm: query_mosquitoes + query_people + query_bs + query_eggs
+			);
+		}
+		
+//		ask People {
+//			ask Saver {
+//				do executeUpdate updateComm: "INSERT INTO people VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" 
+//					values: [
+//						execution_id, scenario_id, start_from_cycle + cycle,
+//						start_from_cycle, myself.name, myself.id, starting_date,
+//						myself.objective, myself.speed, myself.state,
+//						myself.living_place.id, myself.working_place.id,
+//						myself.start_work, myself.end_work,
+//						myself.location.x, myself.location.y
+//					];
+//	   		}
+//   		}
+//   		// -----------------------------------------------------------
+//   		ask Mosquitoes {
+//			ask Saver {
+//				do executeUpdate updateComm: "INSERT INTO mosquitoes VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" 
+//					values: [
+//						execution_id, scenario_id, start_from_cycle + cycle,
+//						start_from_cycle, myself.name, myself.id, myself.date_of_birth,
+//						myself.speed, myself.state, myself.current_building.id,
+//						myself.breeding_site.id, myself.location.x, myself.location.y
+//					];
+//	   		}
+//   		}
+//   		// -----------------------------------------------------------
+//   		ask BreedingSites {
+//			ask Saver {
+//				do executeUpdate updateComm: "INSERT INTO breeding_sites VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" 
+//					values: [
+//						execution_id, scenario_id, start_from_cycle + cycle,
+//						start_from_cycle, myself.name, myself.id, starting_date,
+//						myself.active, myself.eggs, myself.building_location.id,
+//						myself.location.x, myself.location.y
+//					];
+//	   		}
+//   		}
+//   		// -----------------------------------------------------------
+//   		ask Eggs {
+//			ask Saver {
+//				do executeUpdate updateComm: "INSERT INTO eggs VALUES(?, ?, ?, ?, ?, ?, ?);" 
+//					values: [
+//						execution_id, scenario_id, start_from_cycle + cycle,
+//						start_from_cycle, myself.deposited_date,
+//						myself.breeding_site.id, myself.deposited_days
+//					];
+//	   		}
+//   		}
 	}
  
 	reflex save when: save_states and ((use_initial_scenario and cycle > 0) or (!use_initial_scenario and cycle >= 0)) {
@@ -832,6 +925,7 @@ experiment dengue_propagation type: gui until: cycle >= max_cycles and end_simul
 	parameter "Mosquitoes move probability" var: mosquitoes_move_probability category: "mosquitoes" init: 1.0;
 	parameter "Maximum radius" var: max_move_radius category: "mosquitoes" init: 100 #m;
 	parameter "Execution id" var: execution_id category: "int" init: 1;
+	parameter "Save?" var: save_states category: "bool" init: true;
 		
 //	output {
 //		display city type: opengl{

@@ -81,3 +81,13 @@ select * from people where simulation_id = 1 and cycle = 0 and state = 1 ORDER B
 update people SET speed=-1.0, living_place=-1,working_place=-1 where simulation_id = 1 and cycle = 0;
 
 select * from metrics;
+    
+delete from mosquitoes;
+delete from people;
+delete from eggs;
+delete from breeding_sites;
+
+select * from people;
+select * from mosquitoes;
+select * from breeding_sites;
+select * from eggs;
