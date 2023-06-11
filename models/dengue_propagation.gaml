@@ -236,48 +236,158 @@ global {
 	action update_start_scenario {
 		int n <- 0;
 		
-		// ----------------------------------------------------------
-		ask People {
-			ask Saver {
-		  		n <- self.executeUpdate(
-		  			updateComm: "UPDATE people " +
-						"SET objective=?, speed=?, living_place=?, working_place=?, start_work_h=?, end_work_h=?, x=?, y=?" + 
-						"WHERE (execution_id=? and simulation_id=? and cycle=? and id=?);",
-					values: [myself.objective, myself.speed, myself.living_place.id, myself.working_place.id,
-						myself.start_work, myself.end_work, myself.location.x, myself.location.y,
-						start_from_execution_id, start_from_scenario, start_from_cycle, myself.id
-					]
-		  		);
-	  		}
+		ask Saver {
+			if (!self.isConnected()) {
+				do connect (params: SQLITE);
+			}
 		}
 		
-		// ----------------------------------------------------------		
+		string delete_query <- "";
+		loop spc over: ["mosquitoes", "people", "breeding_sites", "eggs"] {
+			delete_query <- delete_query + "delete from " + spc + " where execution_id=" + string(start_from_execution_id) +
+			" and simulation_id=" + string(start_from_scenario) + " and cycle=" + string(start_from_cycle) + "; ";
+			}
+					
+		ask Saver {
+			do executeUpdate(
+				updateComm: delete_query
+			);
+		}
+				
+		// --------------------------------- Mosquitoes ---------------------------------
+		string prefix <- "(" + string(start_from_execution_id) + ", " + string(start_from_scenario) + ", " + string(start_from_cycle + cycle) + ", " + string(start_from_cycle);
+		
+		write "Updating Species: " + prefix;
+		
+		string query_mosquitoes <- "INSERT INTO mosquitoes(execution_id, simulation_id, cycle, 
+			started_from_cycle, name, id, date_of_birth, speed, state, curr_building, bs_id, x, y) VALUES";
+		
+		int cnt <- 1;
+		int nb <- length(Mosquitoes);
+				
 		ask Mosquitoes {
-			ask Saver {
-		  		n <- self.executeUpdate(
-		  			updateComm: "UPDATE mosquitoes " +
-						"SET speed=?, curr_building=?, bs_id=?, x=?, y=?" + 
-						"WHERE (execution_id=? and simulation_id=? and cycle=? and id=?);",
-					values: [myself.speed, myself.current_building.id, myself.breeding_site.id, myself.location.x, myself.location.y,
-						start_from_execution_id, start_from_scenario, start_from_cycle, myself.id
-					]
-		  		);
-	  		}
+			query_mosquitoes <- query_mosquitoes + prefix + ", '" + self.name + "', " + string(self.id) + ", '" + string(self.date_of_birth) +
+			"' , " + string(self.speed) + ", " + string(self.state) + ", " + string(self.current_building.id) +
+			", " + string(self.breeding_site.id) + ", " + string(self.location.x) + ", " + string(self.location.y) + ")";
+			if cnt < nb {
+				query_mosquitoes <- query_mosquitoes + ", ";
+			} else {
+				query_mosquitoes <- query_mosquitoes + "; ";
+			}
+			cnt <- cnt + 1;
+		}
+		
+		write "Write Mosquitoes!";
+		// --------------------------------- People ---------------------------------	
+		string query_people <- "INSERT INTO people(execution_id, simulation_id, cycle, 
+			started_from_cycle, name, id, date_of_birth, objective, speed, state, living_place,
+			working_place, start_work_h, end_work_h, x, y) VALUES";
+		
+		cnt <- 1;
+		nb <- length(People);
+		
+		ask People {
+			query_people <- query_people + prefix + ", '" + string(self.name) + "', " + string(self.id) + ", '" + string(starting_date) +
+				"', '" + self.objective + "', " + string(self.speed) + ", " + string(self.state) + ", " + string(self.living_place.id) +
+				", " + string(self.working_place.id) + ", " + string(self.start_work) + ", " + string(self.end_work) + 
+				", " + string(self.location.x) + ", " + string(self.location.y) + ")";
+			
+			if cnt < nb {
+				query_people <- query_people + ", ";
+			} else {
+				query_people <- query_people + "; ";
+			}
+			cnt <- cnt + 1;
+		}
+		
+		write "Write People!";
+		// --------------------------------- Breeding Sites ---------------------------------	
+		string query_bs <- "INSERT INTO breeding_sites(execution_id, simulation_id, cycle, 
+			started_from_cycle, name, id, date_of_birth, active, eggs, curr_building, x, y) VALUES";
+	
+		cnt <- 1;
+		nb <- length(BreedingSites);
+		
+		ask BreedingSites {
+			query_bs <- query_bs + prefix + ", '" + string(self.name) + "', " + string(self.id) + ", '" + string(starting_date) +
+				"', " + string(self.active) + ", " + string(self.eggs) + ", " + string(self.building_location.id) +
+				", " + string(self.location.x) + ", " + string(self.location.y) + ")";
+			
+			if cnt < nb {
+				query_bs <- query_bs + ", ";
+			} else {
+				query_bs <- query_bs + "; ";
+			}
+			cnt <- cnt + 1;
+		}
+		
+		write "Write BS!";
+		ask Saver {
+			do executeUpdate(
+				updateComm: query_mosquitoes + query_people + query_bs
+			);
 		}
 		
 		// ----------------------------------------------------------
-		ask BreedingSites {
-			ask Saver {
-		  		n <- self.executeUpdate(
-		  			updateComm: "UPDATE breeding_sites " +
-						"SET curr_building=?, x=?, y=?" + 
-						"WHERE (execution_id=? and simulation_id=? and cycle=? and id=?);",
-					values: [myself.building_location.id, myself.location.x, myself.location.y,
-						start_from_execution_id, start_from_scenario, start_from_cycle, myself.id
-					]
-		  		);
-	  		}
-		}
+//		string query <- "";
+//		ask People {
+//			query <- query + "UPDATE people SET objective=\"" + objective + "\", speed=" + string(speed) + ", living_place=" + string(living_place.id) +
+//			", working_place=" + string(working_place.id) + ", start_work_h=" + string(start_work) +
+//			", end_work_h=" + string(end_work) + ", x=" + string(location.x) + ", y=" + string(location.y) +
+//			" WHERE (execution_id=" + string(start_from_execution_id) + " and simulation_id=" + string(start_from_scenario) +
+//			" and cycle=" + string(start_from_cycle) + " and id=" + string(id) + "); ";
+////			ask Saver {
+////		  		n <- self.executeUpdate(
+////		  			updateComm: "UPDATE people " +
+////						"SET objective=?, speed=?, living_place=?, working_place=?, start_work_h=?, end_work_h=?, x=?, y=?" + 
+////						"WHERE (execution_id=? and simulation_id=? and cycle=? and id=?);",
+////					values: [myself.objective, myself.speed, myself.living_place.id, myself.working_place.id,
+////						myself.start_work, myself.end_work, myself.location.x, myself.location.y,
+////						start_from_execution_id, start_from_scenario, start_from_cycle, myself.id
+////					]
+////		  		);
+////	  		}
+//		}
+//		
+//		// ----------------------------------------------------------		
+//		ask Mosquitoes {
+//			query <- query + "UPDATE mosquitoes SET speed=" + string(speed) + ", curr_building=" + string(current_building.id) +
+//			", bs_id=" + string(breeding_site.id) + ", x=" + string(location.x) + ", y=" + string(location.y) +
+//			" WHERE (execution_id=" + string(start_from_execution_id) + " and simulation_id=" + string(start_from_scenario) +
+//			" and cycle=" + string(start_from_cycle) + " and id=" + string(id) + "); ";
+//			
+////			ask Saver {
+////		  		n <- self.executeUpdate(
+////		  			updateComm: "UPDATE mosquitoes " +
+////						"SET speed=?, curr_building=?, bs_id=?, x=?, y=?" + 
+////						"WHERE (execution_id=? and simulation_id=? and cycle=? and id=?);",
+////					values: [myself.speed, myself.current_building.id, myself.breeding_site.id, myself.location.x, myself.location.y,
+////						start_from_execution_id, start_from_scenario, start_from_cycle, myself.id
+////					]
+////		  		);
+////	  		}
+//		}
+//		
+//		// ----------------------------------------------------------
+//		ask BreedingSites {
+//			query <- query + "UPDATE breeding_sites SET curr_building=" + string(building_location.id) +
+//			", x=" + string(location.x) + ", y=" + string(location.y) +
+//			" WHERE (execution_id=" + string(start_from_execution_id) + " and simulation_id=" + string(start_from_scenario) +
+//			" and cycle=" + string(start_from_cycle) + " and id=" + string(id) + "); ";
+////			ask Saver {
+////		  		n <- self.executeUpdate(
+////		  			updateComm: "UPDATE breeding_sites " +
+////						"SET curr_building=?, x=?, y=?" + 
+////						"WHERE (execution_id=? and simulation_id=? and cycle=? and id=?);",
+////					values: [myself.building_location.id, myself.location.x, myself.location.y,
+////						start_from_execution_id, start_from_scenario, start_from_cycle, myself.id
+////					]
+////		  		);
+////	  		}
+//		}
+//		ask Saver {
+//			n <- executeUpdate(query);
+//		}
 	}
 	
 	action load_starting_scenario {
@@ -884,9 +994,9 @@ experiment dengue_propagation type: gui until: cycle >= max_cycles and end_simul
 	parameter "Type of execution" var: run_batch category: "bool" init: false;
 	parameter "SQLite" var: sqlite_ds category: "string";
 	parameter "Start Date" var: start_date_str category: "string" init: "2020-05-08";
-	parameter "Max cycles" var: max_cycles category: "int";
+	parameter "Max cycles" var: max_cycles category: "int" init: 1;
 	parameter "Execution id" var: execution_id category: "int" init: 1;
-	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/carlos/phd/code/dengue-arp-simulation/includes/limoeiro-500";
+	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/carlos/phd/code/dengue-arp-simulation/includes/limoeiro-5000";
 	//
 	parameter "Number of outbreak agents" var: nb_breeding_sites category: "int";
 	parameter "Number of people agents" var: nb_people category: "int";
@@ -914,14 +1024,14 @@ experiment dengue_propagation type: gui until: cycle >= max_cycles and end_simul
 }
 
 
-experiment headless_dengue_propagation type: batch until: cycle >= max_cycles and end_simulation = true repeat: 10 {
+experiment headless_dengue_propagation type: batch until: cycle >= max_cycles and end_simulation = true repeat: 5 {
 	//
 	parameter "Type of execution" var: run_batch category: "bool" init: true;
 	parameter "SQLite" var: sqlite_ds category: "string";
 	parameter "Start Date" var: start_date_str category: "string" init: "2020-05-08";
-	parameter "Max cycles" var: max_cycles category: "int";
+	parameter "Max cycles" var: max_cycles category: "int" init: 1;
 	parameter "Execution id" var: execution_id category: "int" init: 1;
-	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/carlos/phd/code/dengue-arp-simulation/includes/limoeiro-500";
+	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/carlos/phd/code/dengue-arp-simulation/includes/limoeiro-5000";
 	//
 	parameter "Number of outbreak agents" var: nb_breeding_sites category: "int";
 	parameter "Number of people agents" var: nb_people category: "int";

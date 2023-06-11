@@ -79,15 +79,17 @@ drop table metrics;
 
 select * from people where simulation_id = 1 and cycle = 0 and state = 1 ORDER BY cycle DESC;
 update people SET speed=-1.0, living_place=-1,working_place=-1 where simulation_id = 1 and cycle = 0;
-
-select * from metrics;
     
 delete from mosquitoes;
 delete from people;
 delete from eggs;
 delete from breeding_sites;
+delete from metrics;
 
 select * from people;
 select * from mosquitoes;
-select * from breeding_sites;
+select * from breeding_sites where execution_id = -1;
 select * from eggs;
+select * from metrics;
+
+select * from cases where city = "ALTO SANTO" and data_notification between "2021-05-11" and "2021-05-30";
