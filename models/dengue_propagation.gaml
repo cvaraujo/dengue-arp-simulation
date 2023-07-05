@@ -43,10 +43,10 @@ global {
 	bool save_states <- false;
 
 	// Default number of species
-	int nb_people <- 10;
+	int nb_people <- 14;
 	int nb_breeding_sites <- 3;
 	int nb_mosquitoes <- 20;
-	int nb_infected_people <- 10;
+	int nb_infected_people <- 15;
 	int nb_infected_mosquitoes <- 20;
 	
 	// Counter of species
@@ -106,7 +106,7 @@ global {
 	float mosquitoes_daily_latency_rate	<- 0.143; // 0.0715
 	float mosquitoes_susceptibility_to_dengue <- 0.526;
 	float mosquitoes_death_rate <- 0.01;
-	float mosquitoes_oviposition_rate <- 0.2;
+	float mosquitoes_oviposition_rate <- 0.02;
 	
 	// Movement
 	float mosquitoes_move_probability <- 0.5;
@@ -114,7 +114,7 @@ global {
 	// Oviposition capacity
 	int mosquitoes_max_carrying_capacity <- 2;
 	// Max move distance
-	float max_move_radius <- 100.0 #m;
+	float max_move_radius <- 150.0 #m;
 	
 	// ----------------------------------------------------------
 	// ------------- Breeding site global parameters ------------
@@ -138,6 +138,7 @@ global {
 	   		do close;
 	   }
 	   end_simulation <- true;
+	   write "End the simulation...";
 	}
 	
 	action create_street_blocks_and_save {
@@ -232,7 +233,6 @@ global {
 		cycle_exposed_people[0] <- nb_people;
 	}
 	
-	// TODO: refactor as the insert function
 	action update_start_scenario {
 		int n <- 0;
 		
@@ -277,7 +277,6 @@ global {
 			cnt <- cnt + 1;
 		}
 		
-		write "Write Mosquitoes!";
 		// --------------------------------- People ---------------------------------	
 		string query_people <- "INSERT INTO people(execution_id, simulation_id, cycle, 
 			started_from_cycle, name, id, date_of_birth, objective, speed, state, living_place,
@@ -300,7 +299,6 @@ global {
 			cnt <- cnt + 1;
 		}
 		
-		write "Write People!";
 		// --------------------------------- Breeding Sites ---------------------------------	
 		string query_bs <- "INSERT INTO breeding_sites(execution_id, simulation_id, cycle, 
 			started_from_cycle, name, id, date_of_birth, active, eggs, curr_building, x, y) VALUES";
@@ -321,73 +319,11 @@ global {
 			cnt <- cnt + 1;
 		}
 		
-		write "Write BS!";
 		ask Saver {
 			do executeUpdate(
 				updateComm: query_mosquitoes + query_people + query_bs
 			);
 		}
-		
-		// ----------------------------------------------------------
-//		string query <- "";
-//		ask People {
-//			query <- query + "UPDATE people SET objective=\"" + objective + "\", speed=" + string(speed) + ", living_place=" + string(living_place.id) +
-//			", working_place=" + string(working_place.id) + ", start_work_h=" + string(start_work) +
-//			", end_work_h=" + string(end_work) + ", x=" + string(location.x) + ", y=" + string(location.y) +
-//			" WHERE (execution_id=" + string(start_from_execution_id) + " and simulation_id=" + string(start_from_scenario) +
-//			" and cycle=" + string(start_from_cycle) + " and id=" + string(id) + "); ";
-////			ask Saver {
-////		  		n <- self.executeUpdate(
-////		  			updateComm: "UPDATE people " +
-////						"SET objective=?, speed=?, living_place=?, working_place=?, start_work_h=?, end_work_h=?, x=?, y=?" + 
-////						"WHERE (execution_id=? and simulation_id=? and cycle=? and id=?);",
-////					values: [myself.objective, myself.speed, myself.living_place.id, myself.working_place.id,
-////						myself.start_work, myself.end_work, myself.location.x, myself.location.y,
-////						start_from_execution_id, start_from_scenario, start_from_cycle, myself.id
-////					]
-////		  		);
-////	  		}
-//		}
-//		
-//		// ----------------------------------------------------------		
-//		ask Mosquitoes {
-//			query <- query + "UPDATE mosquitoes SET speed=" + string(speed) + ", curr_building=" + string(current_building.id) +
-//			", bs_id=" + string(breeding_site.id) + ", x=" + string(location.x) + ", y=" + string(location.y) +
-//			" WHERE (execution_id=" + string(start_from_execution_id) + " and simulation_id=" + string(start_from_scenario) +
-//			" and cycle=" + string(start_from_cycle) + " and id=" + string(id) + "); ";
-//			
-////			ask Saver {
-////		  		n <- self.executeUpdate(
-////		  			updateComm: "UPDATE mosquitoes " +
-////						"SET speed=?, curr_building=?, bs_id=?, x=?, y=?" + 
-////						"WHERE (execution_id=? and simulation_id=? and cycle=? and id=?);",
-////					values: [myself.speed, myself.current_building.id, myself.breeding_site.id, myself.location.x, myself.location.y,
-////						start_from_execution_id, start_from_scenario, start_from_cycle, myself.id
-////					]
-////		  		);
-////	  		}
-//		}
-//		
-//		// ----------------------------------------------------------
-//		ask BreedingSites {
-//			query <- query + "UPDATE breeding_sites SET curr_building=" + string(building_location.id) +
-//			", x=" + string(location.x) + ", y=" + string(location.y) +
-//			" WHERE (execution_id=" + string(start_from_execution_id) + " and simulation_id=" + string(start_from_scenario) +
-//			" and cycle=" + string(start_from_cycle) + " and id=" + string(id) + "); ";
-////			ask Saver {
-////		  		n <- self.executeUpdate(
-////		  			updateComm: "UPDATE breeding_sites " +
-////						"SET curr_building=?, x=?, y=?" + 
-////						"WHERE (execution_id=? and simulation_id=? and cycle=? and id=?);",
-////					values: [myself.building_location.id, myself.location.x, myself.location.y,
-////						start_from_execution_id, start_from_scenario, start_from_cycle, myself.id
-////					]
-////		  		);
-////	  		}
-//		}
-//		ask Saver {
-//			n <- executeUpdate(query);
-//		}
 	}
 	
 	action load_starting_scenario {
@@ -481,9 +417,9 @@ global {
 				}
 			}
 			cnt_people <- nb_people + nb_infected_people + nb_recovered_people;
-			cycle_infected_people[start_from_cycle] <- nb_infected_people;
-			cycle_exposed_people[start_from_cycle] <- nb_people;
-			cycle_recovered_people[start_from_cycle] <- nb_recovered_people;			
+//			cycle_infected_people[start_from_cycle] <- nb_infected_people;
+//			cycle_exposed_people[start_from_cycle] <- nb_people;
+//			cycle_recovered_people[start_from_cycle] <- nb_recovered_people;			
 			
 			// ----------------------------------------------------------
 			list<list> mosquitoes <- self.select(
@@ -711,7 +647,7 @@ species People skills: [moving]{
 	// Reflex to change the state of the agent to infected
 	reflex change_to_infected_state when: state = 0 {
 		float proba <- 1 - (1 - mosquitoes_daily_rate_of_bites * mosquitoes_susceptibility_to_dengue);
-		ask Mosquitoes at_distance(2 #m) {
+		ask Mosquitoes at_distance(1 #m) {
 			// Check the mosquitoes state
 			if state = 2 and flip(proba){
 				myself.state <- 1;
@@ -783,7 +719,7 @@ species Mosquitoes skills: [moving] {
 	// Reflex to change the state of the agent to exposed
 	reflex change_to_exposed_state when: state = 0 {
 		float proba <- 1 - (1 - mosquitoes_daily_rate_of_bites * mosquitoes_susceptibility_to_dengue);
-		ask People at_distance(2 #m) {
+		ask People at_distance(1 #m) {
 			// Check the people state
 			if state = 1 and flip(proba){
 				myself.state <- 1;
@@ -802,7 +738,7 @@ species Mosquitoes skills: [moving] {
 	
 	// Reflex to generate a new offspring
 	reflex oviposition when: flip(mosquitoes_oviposition_rate){
-		BreedingSites potential_bs <- BreedingSites at_distance(2 #m) closest_to(self);
+		BreedingSites potential_bs <- BreedingSites at_distance(1 #m) closest_to(self);
 		if potential_bs != nil {
 			potential_bs.new_eggs <- rnd(1, mosquitoes_max_carrying_capacity);
 		}
@@ -977,10 +913,10 @@ species Saver parent: AgentDB {
 		
 		write "Saving on Execution: " + string(execution_id) + " - " + string(scenario_id) + " - " + string(cycle);
 		
-		do executeUpdate updateComm: "INSERT INTO metrics VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" 
+		do executeUpdate updateComm: "INSERT INTO metrics VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" 
 			values: [
 				execution_id, scenario_id, start_from_cycle + cycle,
-				start_from_cycle, "people", 0, cycle_exposed_people[start_from_cycle + cycle],
+				start_from_cycle, current_date, "people", 0, cycle_exposed_people[start_from_cycle + cycle],
 				cycle_infected_people[start_from_cycle + cycle], cycle_recovered_people[start_from_cycle + cycle], 0
 		];
    }
@@ -989,7 +925,7 @@ species Saver parent: AgentDB {
 // ----------------------------------------------------------
 // ---------------------- Experiments -----------------------
 // ----------------------------------------------------------
-experiment dengue_propagation type: gui until: cycle >= max_cycles and end_simulation = true  {
+experiment dengue_propagation type: gui until: (cycle >= max_cycles and end_simulation) {
 	//
 	parameter "Type of execution" var: run_batch category: "bool" init: false;
 	parameter "SQLite" var: sqlite_ds category: "string";
@@ -1007,7 +943,7 @@ experiment dengue_propagation type: gui until: cycle >= max_cycles and end_simul
 	parameter "Mosquitoes move probability" var: mosquitoes_move_probability category: "float" init: 0.5;
 	parameter "Maximum radius" var: max_move_radius category: "int" init: 100 #m;
 	//
-	parameter "Start from data" var: use_initial_scenario category: "bool" init: true;
+	parameter "Start from data" var: use_initial_scenario category: "bool" init: false;
 	parameter "Execution number" var: start_from_execution_id category: "int" init: 1;
 	parameter "Scenario number" var: start_from_scenario category: "int" init: 1;
 	parameter "Cycle number" var: start_from_cycle category: "int" init: 0;
@@ -1024,7 +960,7 @@ experiment dengue_propagation type: gui until: cycle >= max_cycles and end_simul
 }
 
 
-experiment headless_dengue_propagation type: batch until: cycle >= max_cycles and end_simulation = true repeat: 5 {
+experiment headless_dengue_propagation type: batch until: (cycle >= max_cycles or end_simulation) repeat: 30 {
 	//
 	parameter "Type of execution" var: run_batch category: "bool" init: true;
 	parameter "SQLite" var: sqlite_ds category: "string";

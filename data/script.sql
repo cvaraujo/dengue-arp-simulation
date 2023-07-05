@@ -63,6 +63,7 @@ CREATE TABLE metrics (
     simulation_id INT NOT NULL,
     cycle INT,
     started_from_cycle INT DEFAULT 0,
+    event_date DATE,
     specie varchar(30),
     susceptible int DEFAULT 0,
     exposed int DEFAULT 0,
@@ -86,10 +87,17 @@ delete from eggs;
 delete from breeding_sites;
 delete from metrics;
 
-select * from people;
+select * from people where working_place = -1;
 select * from mosquitoes;
-select * from breeding_sites where execution_id = -1;
+select * from breeding_sites;
 select * from eggs;
-select * from metrics;
+select * from metrics where execution_id = 1 and simulation_id = 1;
 
-select * from cases where city = "ALTO SANTO" and data_notification between "2021-05-11" and "2021-05-30";
+select * from metrics where simulation_id = 1;
+
+SELECT * FROM cases WHERE city = "LIMOEIRO" AND data_notification BETWEEN "2020-05-01" AND "2020-05-08";
+
+update people SET speed=-1.0,living_place=-1,working_place=-1 where simulation_id = 1 and cycle = 0;
+
+select * from metrics;
+execution_id = 1 and cycle = 0;
