@@ -91,7 +91,7 @@ global {
 	float people_max_speed <- 60.0 #km / #h;
 	
 	// Recovery rate
-	float people_daily_recovery_rate <- 0.143;
+	float people_daily_recovery_rate <- 0.143; // TODO: remove 0's
 	
 	// ----------------------------------------------------------
 	// -------------- Mosquitoes global parameters --------------
@@ -103,13 +103,13 @@ global {
 	// Probabilities
 	float mosquitoes_daily_rate_of_bites <- 0.168;
 	float mosquitoes_frac_infectious_bites <- 0.6;
-	float mosquitoes_daily_latency_rate	<- 0.143; // 0.0715
+	float mosquitoes_daily_latency_rate	<- 0.143;
 	float mosquitoes_susceptibility_to_dengue <- 0.526;
 	float mosquitoes_death_rate <- 0.01;
 	float mosquitoes_oviposition_rate <- 0.02;
 	
 	// Movement
-	float mosquitoes_move_probability <- 0.5;
+	float mosquitoes_move_probability <- 0.8;
 	
 	// Oviposition capacity
 	int mosquitoes_max_carrying_capacity <- 2;
@@ -149,20 +149,22 @@ global {
 		loop i from: 1 to: num_blocks {
 			// Get the roads and vertices of the block
 			list<Roads> block_roads <- Roads where (each.block_id = i);
-			list nodes <- block_roads collect([each.source_node, each.target_node]);
-			list sequence <- [nodes[0][1]];
+			list nodes <- block_roads collect([each.u, each.v]);
+									
+			list sequence <- [one_of(Vertices where(each.osmid = nodes[0][1]))];
 
 			// Get the right sequence of arcs (streets) 
 			bool has_change <- true;
 			loop while: length(sequence) < length(nodes) and has_change {
 				has_change <- false;
 				loop j from: 1 to: length(nodes)-1 {
-					if(nodes[j][0].name = sequence[length(sequence)-1].name) {
-						add nodes[j][1] to: sequence;
+					if(one_of(Vertices where(each.osmid = nodes[j][0])).name = sequence[length(sequence)-1].name) {
+						add one_of(Vertices where(each.osmid = nodes[j][1])) to: sequence;
 						has_change <- true;
 					}
 				}
 			}
+			
 			// Converte the sequence of vertices into points
 			list<point> points <- sequence collect(
 				point(each.location.x, each.location.y)
@@ -175,7 +177,7 @@ global {
 		}
 			
 		list<Blocks> valid_blocks <- Blocks where(each.block_polygon.area > 0);
-				
+						
 		ask valid_blocks {
 			create Buildings from: [block_polygon] with: [id::id];
 		}
@@ -256,9 +258,7 @@ global {
 				
 		// --------------------------------- Mosquitoes ---------------------------------
 		string prefix <- "(" + string(start_from_execution_id) + ", " + string(start_from_scenario) + ", " + string(start_from_cycle + cycle) + ", " + string(start_from_cycle);
-		
-		write "Updating Species: " + prefix;
-		
+				
 		string query_mosquitoes <- "INSERT INTO mosquitoes(execution_id, simulation_id, cycle, 
 			started_from_cycle, name, id, date_of_birth, speed, state, curr_building, bs_id, x, y) VALUES";
 		
@@ -351,11 +351,7 @@ global {
 				if (load_x = -1 or load_y = -1 or load_building = -1) {
 					fill_data <- true;
 				}
-				
-				if load_id > cnt_mosquitoes {
-					cnt_mosquitoes <- load_id + 1;
-				}
-								
+																
 				create BreedingSites {
 					name <- load_name;
 					id <- load_id;
@@ -365,7 +361,11 @@ global {
 					location <- (load_x != -1.0 and load_y != -1.0) ? point(load_x, load_y) : any_location_in(building_location);
 					buildings <- Buildings at_distance(max_move_radius);
 				}
-
+				// ----------------------------------------------------------------------------------
+				// ----------------------------------------------------------------------------------
+				// ----------------------------------------------------------------------------------
+				// ----------------------------------------------------------------------------------
+				// ----------------------------------------------------------------------------------
 			}
 			cnt_breeding_sites <- nb_breeding_sites;
 			
@@ -495,12 +495,18 @@ global {
 			do die;
 		}
 						
-		// Load the roads
-		create Roads from: road_shapefile with: [osmid::string(read("osmid")), id::int(read("id_key")), block_id::int(read("block"))];
-
 		// Vertex
-		create Vertices from: node_shapefile;
+		create Vertices from: node_shapefile with: [osmid::string(read("osmid"))];
 		
+		// Load the roads
+		create Roads from: road_shapefile with: [
+			osmid::read("osmid"),
+			id::int(read("id_key")),
+			block_id::int(read("block")),
+			u::read("u"),
+			v::read("v")
+		];
+						
 		// Define the network graph
 		road_network <- as_driving_graph(Roads, Vertices);
 		
@@ -541,14 +547,13 @@ species Eggs {
 	date deposited_date <- current_date;
 	
 	reflex turn_mosquito when: every(cycle) {
-		deposited_days <- deposited_days + 0.5;
-		if flip(min(bs_eggs_to_mosquitoes * deposited_days, 1)) {
+		if flip(bs_eggs_to_mosquitoes) {
 			// Create a new mosquito
 			create Mosquitoes {
 				breeding_site <- myself.breeding_site;
 				current_building <- one_of(breeding_site.buildings);
 				location <- any_location_in(current_building);
-				state <- 0;
+				state <- 0; 
 			}
 			breeding_site.eggs <- breeding_site.eggs - 1;
 			do die;
@@ -660,6 +665,7 @@ species People skills: [moving]{
 	reflex change_to_recovered_state when: state = 1 and flip(people_daily_recovery_rate) {
 		state <- 2;
 		cycle_recovered_people[(start_from_cycle + cycle)] <- cycle_recovered_people[(start_from_cycle + cycle)] + 1;
+		do die;
 	}
 	
 	aspect default {
@@ -769,16 +775,19 @@ species Buildings {
 
 //Species to represent the roads
 species Vertices skills: [skill_road_node] {
+	string osmid;
+	
 	aspect default {
 		draw circle(5) color: #black;
 	}
 }
 
 species Roads skills: [skill_road] {
-	// Osmid
 	string osmid;
 	int id;
 	int block_id;
+	string u;
+	string v;
 	
 	aspect default {
 		draw shape color: #black;
@@ -806,7 +815,6 @@ species Saver parent: AgentDB {
 		// --------------------------------- Mosquitoes ---------------------------------
 		string prefix <- "(" + string(execution_id) + ", " + string(scenario_id) + ", " + string(start_from_cycle + cycle) + ", " + string(start_from_cycle);
 		
-		write "Saving on Execution: " + prefix;
 		string query_mosquitoes <- "INSERT INTO mosquitoes(execution_id, simulation_id, cycle, 
 			started_from_cycle, name, id, date_of_birth, speed, state, curr_building, bs_id, x, y) VALUES";
 		
@@ -904,7 +912,7 @@ species Saver parent: AgentDB {
    reflex save_metrics when: !end_simulation {
 		if (!self.isConnected()) {
 			do connect (params: SQLITE);
-		}
+		} 
 		
 		if run_batch {
 			list<string> simulation_id <- simulation_name split_with ' ';
@@ -924,15 +932,15 @@ species Saver parent: AgentDB {
 
 // ----------------------------------------------------------
 // ---------------------- Experiments -----------------------
-// ----------------------------------------------------------
+// ----------------------------------------------------------asdasdasd
 experiment dengue_propagation type: gui until: (cycle >= max_cycles and end_simulation) {
 	//
 	parameter "Type of execution" var: run_batch category: "bool" init: false;
 	parameter "SQLite" var: sqlite_ds category: "string";
-	parameter "Start Date" var: start_date_str category: "string" init: "2020-05-08";
-	parameter "Max cycles" var: max_cycles category: "int" init: 1;
+	parameter "Start Date" var: start_date_str category: "string" init: "2017-01-09";
+	parameter "Max cycles" var: max_cycles category: "int" init: 60;
 	parameter "Execution id" var: execution_id category: "int" init: 1;
-	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/carlos/phd/code/dengue-arp-simulation/includes/limoeiro-5000";
+	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/carlos/phd/code/dengue-arp-simulation/includes/ALTO SANTO_500";
 	//
 	parameter "Number of outbreak agents" var: nb_breeding_sites category: "int";
 	parameter "Number of people agents" var: nb_people category: "int";
@@ -941,26 +949,33 @@ experiment dengue_propagation type: gui until: (cycle >= max_cycles and end_simu
 	parameter "Number of infected mosquitoes agents" var: nb_infected_mosquitoes category: "int";
 	//
 	parameter "Mosquitoes move probability" var: mosquitoes_move_probability category: "float" init: 0.5;
-	parameter "Maximum radius" var: max_move_radius category: "int" init: 100 #m;
+	parameter "Maximum radius" var: max_move_radius category: "int" init: 150 #m;
 	//
-	parameter "Start from data" var: use_initial_scenario category: "bool" init: false;
+	parameter "Start from data" var: use_initial_scenario category: "bool" init: true;
 	parameter "Execution number" var: start_from_execution_id category: "int" init: 1;
-	parameter "Scenario number" var: start_from_scenario category: "int" init: 1;
+	parameter "Scenario number" var: start_from_scenario category: "int" init: 0;
 	parameter "Cycle number" var: start_from_cycle category: "int" init: 0;
 	parameter "Save" var: save_states category: "bool" init: false;
-		
-//	output {
-//		display city type: opengl{
-//			species Roads aspect: default ;
-//			species People aspect: default ;
-//			species Mosquitoes aspect: default ;
-//			species BreedingSites aspect: default ;
+	
+	output {
+//		display Charts refresh: cycle < 60 axes: true {		
+//			chart "Humans" type: series background: #white position: {0,0} style: exploded x_label: "Days" {
+//				data "Infected" value: People count (each.state = 1) color: #red;
+//				data "Recovered" value: People count (each.state = 2) color: #green;
+//			}
 //		}
-//	}
+		display city type: opengl{
+			species Buildings aspect: default;
+			species Roads aspect: default ;
+			species People aspect: default ;
+			species Mosquitoes aspect: default ;
+//			species BreedingSites aspect: default ;
+		}
+	}
 }
 
 
-experiment headless_dengue_propagation type: batch until: (cycle >= max_cycles or end_simulation) repeat: 30 {
+experiment headless_dengue_propagation type: batch until: (cycle >= max_cycles or end_simulation) repeat: 10 {
 	//
 	parameter "Type of execution" var: run_batch category: "bool" init: true;
 	parameter "SQLite" var: sqlite_ds category: "string";
@@ -976,7 +991,7 @@ experiment headless_dengue_propagation type: batch until: (cycle >= max_cycles o
 	parameter "Number of infected mosquitoes agents" var: nb_infected_mosquitoes category: "int";
 	//
 	parameter "Mosquitoes move probability" var: mosquitoes_move_probability category: "float" init: 0.5;
-	parameter "Maximum radius" var: max_move_radius category: "int" init: 100 #m;
+	parameter "Maximum radius" var: max_move_radius category: "int" init: 150 #m;
 	//
 	parameter "Start from data" var: use_initial_scenario category: "bool" init: true;
 	parameter "Execution number" var: start_from_execution_id category: "int" init: 1;
