@@ -1,0 +1,4 @@
+name,id,active,eggs,building_location.id,location.x,location.y
+BreedingSites0,0,true,0,65,488.83789091762435,1534.4705348557184
+BreedingSites1,1,true,3,38,1353.7771046211126,1674.9534953596326
+BreedingSites2,2,true,3,248,1442.2373852468695,575.0849365913357
