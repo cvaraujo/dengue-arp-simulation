@@ -670,11 +670,11 @@ species People skills: [moving]{
 	
 	aspect default {
 		if state = 0 {
-			draw circle(5) color: #yellow;	
+//			draw circle(5) color: #yellow;	
 		} else if state = 1 {
-			draw circle(5) color: #red;
+			draw circle(30) color: #red;
 		} else {
-			draw circle(5) color: #green;
+//			draw circle(5) color: #green;
 		}	
 	}
 }
@@ -897,11 +897,18 @@ species Saver parent: AgentDB {
 		if nb <= 0 {
 			query_eggs <- "";
 		}
-				
-		ask Saver {
-			do executeUpdate(
-				updateComm: query_mosquitoes + query_people + query_bs + query_eggs
-			);
+	
+		loop while: true {
+			try {		
+				ask Saver {
+					do executeUpdate(
+						updateComm: query_mosquitoes + query_people + query_bs + query_eggs
+					);
+				}
+				break;
+			} catch {
+				write "Warning [Database Locked!]";
+			}
 		}
 	}
  
@@ -921,12 +928,19 @@ species Saver parent: AgentDB {
 		
 		write "Saving on Execution: " + string(execution_id) + " - " + string(scenario_id) + " - " + string(cycle);
 		
-		do executeUpdate updateComm: "INSERT INTO metrics VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" 
-			values: [
-				execution_id, scenario_id, start_from_cycle + cycle,
-				start_from_cycle, current_date, "people", 0, cycle_exposed_people[start_from_cycle + cycle],
-				cycle_infected_people[start_from_cycle + cycle], cycle_recovered_people[start_from_cycle + cycle], 0
-		];
+		loop while: true {
+			try {		
+				do executeUpdate updateComm: "INSERT INTO metrics VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" 
+					values: [
+						execution_id, scenario_id, start_from_cycle + cycle,
+						start_from_cycle, current_date, "people", 0, cycle_exposed_people[start_from_cycle + cycle],
+						cycle_infected_people[start_from_cycle + cycle], cycle_recovered_people[start_from_cycle + cycle], 0
+				];
+				break;
+			} catch {
+				write "Warning [Database Locked!]";
+			}
+		}
    }
 }
 
@@ -937,10 +951,10 @@ experiment dengue_propagation type: gui until: (cycle >= max_cycles and end_simu
 	//
 	parameter "Type of execution" var: run_batch category: "bool" init: false;
 	parameter "SQLite" var: sqlite_ds category: "string";
-	parameter "Start Date" var: start_date_str category: "string" init: "2017-01-09";
-	parameter "Max cycles" var: max_cycles category: "int" init: 60;
+	parameter "Start Date" var: start_date_str category: "string" init: "2020-06-19";
+	parameter "Max cycles" var: max_cycles category: "int" init: 1;
 	parameter "Execution id" var: execution_id category: "int" init: 1;
-	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/carlos/phd/code/dengue-arp-simulation/includes/ALTO SANTO_500";
+	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/carlos/phd/code/dengue-arp-simulation/includes/LIMOEIRO_2000";
 	//
 	parameter "Number of outbreak agents" var: nb_breeding_sites category: "int";
 	parameter "Number of people agents" var: nb_people category: "int";
@@ -965,17 +979,17 @@ experiment dengue_propagation type: gui until: (cycle >= max_cycles and end_simu
 //			}
 //		}
 		display city type: opengl{
-			species Buildings aspect: default;
+//			species Buildings aspect: default;
 			species Roads aspect: default ;
 			species People aspect: default ;
-			species Mosquitoes aspect: default ;
+//			species Mosquitoes aspect: default ;
 //			species BreedingSites aspect: default ;
 		}
 	}
 }
 
 
-experiment headless_dengue_propagation type: batch until: (cycle >= max_cycles or end_simulation) repeat: 10 {
+experiment headless_dengue_propagation type: batch until: (cycle >= max_cycles or end_simulation) repeat: 30 {
 	//
 	parameter "Type of execution" var: run_batch category: "bool" init: true;
 	parameter "SQLite" var: sqlite_ds category: "string";

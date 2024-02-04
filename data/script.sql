@@ -87,17 +87,28 @@ delete from eggs;
 delete from breeding_sites;
 delete from metrics;
 
-select * from people where working_place = -1;
-select * from mosquitoes;
+select * from people where state = 1;
+select * from mosquitoes where state = 0;
 select * from breeding_sites;
 select * from eggs;
-select * from metrics where execution_id = 1 and simulation_id = 1;
+select * from mosquitoes;
+select * from metrics where event_date between "2020-05-01" and "2023-05-03";
+
+select * from metrics;
 
 select * from metrics where simulation_id = 1;
 
-SELECT * FROM cases WHERE city = "LIMOEIRO" AND data_notification BETWEEN "2020-05-01" AND "2020-05-08";
+SELECT * FROM cases WHERE city = "ALTO SANTO" AND classification != 5 AND data_notification BETWEEN "2017-01-30" AND "2017-02-05";
 
 update people SET speed=-1.0,living_place=-1,working_place=-1 where simulation_id = 1 and cycle = 0;
 
-select * from metrics;
-execution_id = 1 and cycle = 0;
+
+select * from cases where city == "ALTO SANTO" AND data_notification BETWEEN "2017-01-15" AND "2017-01-22" AND classification != 5;
+
+
+SELECT import('~/metrics.csv', 'CSV', 'metrics', 'UTF-8', 'CsvImport.Separator=1');
+
+select sum(infected)/30 from metrics where execution_id == 1 and event_date BETWEEN "2017-01-08" AND "2017-01-16";
+
+select * from metrics where execution_id == 1;
+
