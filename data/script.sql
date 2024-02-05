@@ -72,8 +72,18 @@ CREATE TABLE metrics (
     dead int DEFAULT 0
 );
 
+CREATE TABLE cases (
+    city varchar,
+    data_notification DATE,
+    data_first_symptoms DATE,
+    classification int,
+    x FLOAT,
+    y FLOAT
+);
+
 .mode csv
 
+-- .import sinan_cases.csv cases
 .import dengue-arp-simulation/data/sinan_cases.csv cases
 
 -- drop table eggs;

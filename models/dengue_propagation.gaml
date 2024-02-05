@@ -12,7 +12,7 @@ global {
 	// ------------------- Simulation Config --------------------
 	// ----------------------------------------------------------
 	//SQLite
-	string sqlite_ds <- "/home/carlos/phd/code/dengue-arp-simulation/data/dengue-propagation.db";
+	string sqlite_ds <- "/home/araujo/Documents/dengue-arp-simulation/data/dengue-propagation.db";
 	map<string, string> SQLITE <- ["dbtype"::"sqlite", "database"::sqlite_ds];
 	// Step size
 	float step <- 12 #h;
@@ -940,7 +940,7 @@ experiment dengue_propagation type: gui until: (cycle >= max_cycles and end_simu
 	parameter "Start Date" var: start_date_str category: "string" init: "2017-01-09";
 	parameter "Max cycles" var: max_cycles category: "int" init: 60;
 	parameter "Execution id" var: execution_id category: "int" init: 1;
-	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/carlos/phd/code/dengue-arp-simulation/includes/ALTO SANTO_500";
+	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/araujo/Documents/dengue-arp-simulation/includes/ALTO SANTO_700";
 	//
 	parameter "Number of outbreak agents" var: nb_breeding_sites category: "int";
 	parameter "Number of people agents" var: nb_people category: "int";
@@ -982,7 +982,7 @@ experiment headless_dengue_propagation type: batch until: (cycle >= max_cycles o
 	parameter "Start Date" var: start_date_str category: "string" init: "2020-05-08";
 	parameter "Max cycles" var: max_cycles category: "int" init: 1;
 	parameter "Execution id" var: execution_id category: "int" init: 1;
-	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/carlos/phd/code/dengue-arp-simulation/includes/limoeiro-5000";
+	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/araujo/Documents/dengue-arp-simulation/includes/ALTO SANTO_700";
 	//
 	parameter "Number of outbreak agents" var: nb_breeding_sites category: "int";
 	parameter "Number of people agents" var: nb_people category: "int";
