@@ -1,3 +1,10 @@
+drop table eggs;
+drop table people;
+drop table mosquitoes;
+drop table breeding_sites;
+drop table metrics;
+drop table cases;
+
 CREATE TABLE people (
     execution_id INT NOT NULL,
     simulation_id INT,
@@ -85,12 +92,6 @@ CREATE TABLE cases (
 
 -- .import sinan_cases.csv cases
 .import dengue-arp-simulation/data/sinan_cases.csv cases
-
--- drop table eggs;
--- drop table people;
--- drop table mosquitoes;
--- drop table breeding_sites;
--- drop table metrics;
 
 -- drop table eggs;
 -- drop table people;

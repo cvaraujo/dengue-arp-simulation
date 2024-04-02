@@ -13,7 +13,14 @@ global {
 	// ----------------------------------------------------------
 	//SQLite
 	string sqlite_ds <- "/home/araujo/Documents/dengue-arp-simulation/data/dengue-propagation.db";
-	map<string, string> SQLITE <- ["dbtype"::"sqlite", "database"::sqlite_ds];
+	map<string, string> POSTGRES <- [
+     'host'::'localhost',
+     'dbtype'::'postgres',
+     'database'::'dengue-propagation',
+     'port'::'5432',
+     'user'::'araujo',
+     'passwd'::'admin']; 
+	//["dbtype"::"sqlite", "database"::sqlite_ds];
 	// Step size
 	float step <- 12 #h;
 	// Start date string
@@ -135,7 +142,7 @@ global {
 	// ----------------------------------------------------------
 	reflex stop_simulation when: (start_from_cycle + cycle) >= max_cycles {
 	   ask Saver {
-	   		do close;
+	   	do close;
 	   }
 	   end_simulation <- true;
 	   write "End the simulation...";
@@ -240,7 +247,7 @@ global {
 		
 		ask Saver {
 			if (!self.isConnected()) {
-				do connect (params: SQLITE);
+				do connect (params: POSTGRES);
 			}
 		}
 		
@@ -327,14 +334,21 @@ global {
 	}
 	
 	action load_starting_scenario {
+		ask Saver {
+			if (!self.isConnected()) {
+				do setParameter params: POSTGRES;
+             	do connect params: self.getParameter();
+			}
+		}
+		
 		bool fill_data <- false;
 				
-		ask Saver {
+		ask Saver {			
 			list<list> breeding_sites <- self.select(
 				select: "SELECT * FROM breeding_sites where (execution_id=? and simulation_id=? and cycle=?);",
 				values:[start_from_execution_id, start_from_scenario, start_from_cycle]
 			);
-			
+						
 			nb_breeding_sites <- 0;
 			loop bs over: breeding_sites[2] {
 				string load_name <- bs[4];
@@ -520,18 +534,22 @@ global {
 		}
 		
 		if use_initial_scenario {
+			
 			create Saver{}
-			
+						
 			ask Saver {
-				do connect(params: SQLITE);
+				if (!self.isConnected()) {
+					do setParameter params: POSTGRES;
+		            do connect params: self.getParameter();
+				}
 			}
-			
+						
 			do load_starting_scenario;
 		} else {
 			do create_starting_scenario;
 			create Saver{}
 			ask Saver {
-				do connect(params: SQLITE);
+				do connect(params: POSTGRES);
 			}
 		}
 		write "Model loaded...";
@@ -774,7 +792,7 @@ species Buildings {
 }
 
 //Species to represent the roads
-species Vertices skills: [skill_road_node] {
+species Vertices skills: [intersection_skill] {
 	string osmid;
 	
 	aspect default {
@@ -782,7 +800,7 @@ species Vertices skills: [skill_road_node] {
 	}
 }
 
-species Roads skills: [skill_road] {
+species Roads skills: [road_skill] {
 	string osmid;
 	int id;
 	int block_id;
@@ -803,7 +821,7 @@ species Saver parent: AgentDB {
 	action save_species {
 		ask Saver {
 			if (!self.isConnected()) {
-				do connect (params: SQLITE);
+				do connect (params: POSTGRES);
 			}
 		}
 		
@@ -814,6 +832,7 @@ species Saver parent: AgentDB {
 				
 		// --------------------------------- Mosquitoes ---------------------------------
 		string prefix <- "(" + string(execution_id) + ", " + string(scenario_id) + ", " + string(start_from_cycle + cycle) + ", " + string(start_from_cycle);
+		
 		
 		string query_mosquitoes <- "INSERT INTO mosquitoes(execution_id, simulation_id, cycle, 
 			started_from_cycle, name, id, date_of_birth, speed, state, curr_building, bs_id, x, y) VALUES";
@@ -840,6 +859,8 @@ species Saver parent: AgentDB {
 		
 		cnt <- 1;
 		nb <- length(People);
+		write "Save States: " + prefix;
+		
 		
 		ask People {
 			query_people <- query_people + prefix + ", '" + string(self.name) + "', " + string(self.id) + ", '" + string(starting_date) +
@@ -904,14 +925,52 @@ species Saver parent: AgentDB {
 			);
 		}
 	}
- 
-	reflex save when: save_states and ((use_initial_scenario and cycle > 0) or (!use_initial_scenario and cycle >= 0)) {
-		do save_species;
+ 	
+ 	reflex save_people_last_cycle when: save_states and run_batch and cycle + 1 >= max_cycles {
+ 		// --------------------------------- People ---------------------------------	
+ 		if (!self.isConnected()) {
+			do connect (params: POSTGRES);
+		} 
+		
+		string prefix <- "(" + string(execution_id) + ", " + string(scenario_id) + ", " + string(start_from_cycle + cycle) + ", " + string(start_from_cycle);
+		
+		string query_people <- "INSERT INTO people(execution_id, simulation_id, cycle, 
+			started_from_cycle, name, id, date_of_birth, objective, speed, state, living_place,
+			working_place, start_work_h, end_work_h, x, y) VALUES";
+		
+		int cnt <- 1;
+		int nb <- length(People);
+		
+		write "[SAVE] Saving new " + string(People count (each.state >= 1)) + " notifications!";
+		
+		ask People {
+			query_people <- query_people + prefix + ", '" + string(self.name) + "', " + string(self.id) + ", '" + string(starting_date) +
+				"', '" + self.objective + "', " + string(self.speed) + ", " + string(self.state) + ", " + string(self.living_place.id) +
+				", " + string(self.working_place.id) + ", " + string(self.start_work) + ", " + string(self.end_work) + 
+				", " + string(self.location.x) + ", " + string(self.location.y) + ")";
+			
+			if cnt < nb {
+				query_people <- query_people + ", ";
+			} else {
+				query_people <- query_people + "; ";
+			}
+			cnt <- cnt + 1;
+		}
+		
+		ask Saver {
+			do executeUpdate(
+				updateComm: query_people
+			);
+		}
+ 	}
+ 	
+	reflex save when: save_states and !end_simulation and ((use_initial_scenario and cycle > 0) or (!use_initial_scenario and cycle >= 0)) {
+//		do save_species;
    }
    
    reflex save_metrics when: !end_simulation {
 		if (!self.isConnected()) {
-			do connect (params: SQLITE);
+			do connect (params: POSTGRES);
 		} 
 		
 		if run_batch {
@@ -924,7 +983,7 @@ species Saver parent: AgentDB {
 		do executeUpdate updateComm: "INSERT INTO metrics VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" 
 			values: [
 				execution_id, scenario_id, start_from_cycle + cycle,
-				start_from_cycle, current_date, "people", 0, cycle_exposed_people[start_from_cycle + cycle],
+				start_from_cycle, string(current_date), "people", 0, cycle_exposed_people[start_from_cycle + cycle],
 				cycle_infected_people[start_from_cycle + cycle], cycle_recovered_people[start_from_cycle + cycle], 0
 		];
    }
@@ -940,7 +999,7 @@ experiment dengue_propagation type: gui until: (cycle >= max_cycles and end_simu
 	parameter "Start Date" var: start_date_str category: "string" init: "2017-01-09";
 	parameter "Max cycles" var: max_cycles category: "int" init: 60;
 	parameter "Execution id" var: execution_id category: "int" init: 1;
-	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/araujo/Documents/dengue-arp-simulation/includes/ALTO SANTO_700";
+	parameter "Shapefile:" var: default_shp_dir category: "string" init: "/home/araujo/Documents/dengue-arp-simulation/includes/LIMOEIRO_2500";
 	//
 	parameter "Number of outbreak agents" var: nb_breeding_sites category: "int";
 	parameter "Number of people agents" var: nb_people category: "int";
@@ -949,7 +1008,7 @@ experiment dengue_propagation type: gui until: (cycle >= max_cycles and end_simu
 	parameter "Number of infected mosquitoes agents" var: nb_infected_mosquitoes category: "int";
 	//
 	parameter "Mosquitoes move probability" var: mosquitoes_move_probability category: "float" init: 0.5;
-	parameter "Maximum radius" var: max_move_radius category: "int" init: 150 #m;
+	parameter "Maximum radius" var: max_move_radius category: "int" init: 100 #m;
 	//
 	parameter "Start from data" var: use_initial_scenario category: "bool" init: true;
 	parameter "Execution number" var: start_from_execution_id category: "int" init: 1;
@@ -965,7 +1024,7 @@ experiment dengue_propagation type: gui until: (cycle >= max_cycles and end_simu
 //			}
 //		}
 		display city type: opengl{
-			species Buildings aspect: default;
+//			species Buildings aspect: default;
 			species Roads aspect: default ;
 			species People aspect: default ;
 			species Mosquitoes aspect: default ;
@@ -975,7 +1034,7 @@ experiment dengue_propagation type: gui until: (cycle >= max_cycles and end_simu
 }
 
 
-experiment headless_dengue_propagation type: batch until: (cycle >= max_cycles or end_simulation) repeat: 10 {
+experiment headless_dengue_propagation type: batch until: (cycle >= max_cycles or end_simulation) repeat: 50 {
 	//
 	parameter "Type of execution" var: run_batch category: "bool" init: true;
 	parameter "SQLite" var: sqlite_ds category: "string";
@@ -991,7 +1050,7 @@ experiment headless_dengue_propagation type: batch until: (cycle >= max_cycles o
 	parameter "Number of infected mosquitoes agents" var: nb_infected_mosquitoes category: "int";
 	//
 	parameter "Mosquitoes move probability" var: mosquitoes_move_probability category: "float" init: 0.5;
-	parameter "Maximum radius" var: max_move_radius category: "int" init: 150 #m;
+	parameter "Maximum radius" var: max_move_radius category: "int" init: 100 #m;
 	//
 	parameter "Start from data" var: use_initial_scenario category: "bool" init: true;
 	parameter "Execution number" var: start_from_execution_id category: "int" init: 1;
