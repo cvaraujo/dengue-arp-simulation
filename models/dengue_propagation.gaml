@@ -257,6 +257,7 @@ global {
 			" and simulation_id=" + string(start_from_scenario) + " and cycle=" + string(start_from_cycle) + "; ";
 			}
 					
+
 		ask Saver {
 			do executeUpdate(
 				updateComm: delete_query
@@ -330,17 +331,11 @@ global {
 			do executeUpdate(
 				updateComm: query_mosquitoes + query_people + query_bs
 			);
+		do close;
 		}
 	}
 	
-	action load_starting_scenario {
-		ask Saver {
-			if (!self.isConnected()) {
-				do setParameter params: POSTGRES;
-             	do connect params: self.getParameter();
-			}
-		}
-		
+	action load_starting_scenario {		
 		bool fill_data <- false;
 				
 		ask Saver {			
@@ -552,6 +547,7 @@ global {
 				do connect(params: POSTGRES);
 			}
 		}
+		
 		write "Model loaded...";
 	}
 }
@@ -818,13 +814,7 @@ species Blocks {
 }
 
 species Saver parent: AgentDB {
-	action save_species {
-		ask Saver {
-			if (!self.isConnected()) {
-				do connect (params: POSTGRES);
-			}
-		}
-		
+	action save_species {		
 		if run_batch {
 			list<string> simulation_id <- simulation_name split_with ' ';
 			scenario_id <- int(simulation_id[1]) + 1;
@@ -919,14 +909,12 @@ species Saver parent: AgentDB {
 			query_eggs <- "";
 		}
 				
-		ask Saver {
-			do executeUpdate(
-				updateComm: query_mosquitoes + query_people + query_bs + query_eggs
-			);
-		}
+		do executeUpdate(
+			updateComm: query_mosquitoes + query_people + query_bs + query_eggs
+		);
 	}
  	
- 	reflex save_people_last_cycle when: save_states and run_batch and cycle + 1 >= max_cycles {
+ 	reflex save_people_last_cycle when: save_states and run_batch {
  		// --------------------------------- People ---------------------------------	
  		if (!self.isConnected()) {
 			do connect (params: POSTGRES);
@@ -939,54 +927,51 @@ species Saver parent: AgentDB {
 			working_place, start_work_h, end_work_h, x, y) VALUES";
 		
 		int cnt <- 1;
-		int nb <- length(People);
+		int nb <- People count (each.state = 1);
 		
-		write "[SAVE] Saving new " + string(People count (each.state >= 1)) + " notifications!";
+		write "[SAVE] Saving new " + string(nb) + " notifications!";
 		
 		ask People {
-			query_people <- query_people + prefix + ", '" + string(self.name) + "', " + string(self.id) + ", '" + string(starting_date) +
-				"', '" + self.objective + "', " + string(self.speed) + ", " + string(self.state) + ", " + string(self.living_place.id) +
-				", " + string(self.working_place.id) + ", " + string(self.start_work) + ", " + string(self.end_work) + 
-				", " + string(self.location.x) + ", " + string(self.location.y) + ")";
-			
-			if cnt < nb {
-				query_people <- query_people + ", ";
-			} else {
-				query_people <- query_people + "; ";
+			if self.state = 1 {
+				query_people <- query_people + prefix + ", '" + string(self.name) + "', " + string(self.id) + ", '" + string(starting_date) +
+					"', '" + self.objective + "', " + string(self.speed) + ", " + string(self.state) + ", " + string(self.living_place.id) +
+					", " + string(self.working_place.id) + ", " + string(self.start_work) + ", " + string(self.end_work) + 
+					", " + string(self.location.x) + ", " + string(self.location.y) + ")";
+				
+				if cnt < nb {
+					query_people <- query_people + ", ";
+				} else {
+					query_people <- query_people + "; ";
+				}
+				cnt <- cnt + 1;
 			}
-			cnt <- cnt + 1;
 		}
 		
-		ask Saver {
-			do executeUpdate(
-				updateComm: query_people
-			);
-		}
+		do executeUpdate(
+			updateComm: query_people
+		);
  	}
  	
 	reflex save when: save_states and !end_simulation and ((use_initial_scenario and cycle > 0) or (!use_initial_scenario and cycle >= 0)) {
 //		do save_species;
    }
    
-   reflex save_metrics when: !end_simulation {
-		if (!self.isConnected()) {
-			do connect (params: POSTGRES);
-		} 
-		
+   reflex save_metrics when: !end_simulation {	
 		if run_batch {
 			list<string> simulation_id <- simulation_name split_with ' ';
 			scenario_id <- int(simulation_id[1]) + 1;
 		}
 		
 		write "Saving on Execution: " + string(execution_id) + " - " + string(scenario_id) + " - " + string(cycle);
-		
-		do executeUpdate updateComm: "INSERT INTO metrics VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" 
+
+		do insert(
+			into: "metrics",
 			values: [
 				execution_id, scenario_id, start_from_cycle + cycle,
 				start_from_cycle, string(current_date), "people", 0, cycle_exposed_people[start_from_cycle + cycle],
 				cycle_infected_people[start_from_cycle + cycle], cycle_recovered_people[start_from_cycle + cycle], 0
-		];
-   }
+		]);
+	}
 }
 
 // ----------------------------------------------------------
@@ -1034,7 +1019,7 @@ experiment dengue_propagation type: gui until: (cycle >= max_cycles and end_simu
 }
 
 
-experiment headless_dengue_propagation type: batch until: (cycle >= max_cycles or end_simulation) repeat: 50 {
+experiment headless_dengue_propagation type: batch keep_seed: true until: (cycle >= max_cycles or end_simulation) repeat: 100 {
 	//
 	parameter "Type of execution" var: run_batch category: "bool" init: true;
 	parameter "SQLite" var: sqlite_ds category: "string";
@@ -1057,5 +1042,6 @@ experiment headless_dengue_propagation type: batch until: (cycle >= max_cycles o
 	parameter "Scenario number" var: start_from_scenario category: "int" init: 1;
 	parameter "Cycle number" var: start_from_cycle category: "int" init: 0;
 	parameter "Save" var: save_states category: "bool" init: false;
+	
 }
 
