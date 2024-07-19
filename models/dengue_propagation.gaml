@@ -141,11 +141,11 @@ global {
 	// -------------------- Global actions ----------------------
 	// ----------------------------------------------------------
 	reflex stop_simulation when: (start_from_cycle + cycle) >= max_cycles {
-	   ask Saver {
-	   	do close;
-	   }
+		ask Saver {
+			do close;
+		}
+		
 	   end_simulation <- true;
-	   write "End the simulation...";
 	}
 	
 	action create_street_blocks_and_save {
@@ -423,6 +423,7 @@ global {
 					start_work <- sw != -1 ? sw : rnd(min_work_start, max_work_start);
 					end_work <- ew != -1 ? ew : rnd(min_work_end, max_work_end);
 					location <- (load_x != -1.0 and load_y != -1.0) ? point(load_x, load_y) : any_location_in(living_place);
+					start_infected <- load_state = 1 ? true : false;
 				}
 			}
 			cnt_people <- nb_people + nb_infected_people + nb_recovered_people;
@@ -633,6 +634,7 @@ species People skills: [moving]{
 	float speed <- rnd(people_min_speed, people_max_speed) #km / #h;
 	// (SIR) Current state (susceptible = 0, infected = 1 or recovered = 2)
 	int state <- 0;
+	bool start_infected <- false;
 	
 	init {
 		if id = -1 {
@@ -927,12 +929,12 @@ species Saver parent: AgentDB {
 			working_place, start_work_h, end_work_h, x, y) VALUES";
 		
 		int cnt <- 1;
-		int nb <- People count (each.state = 1);
+		int nb <- People count ((each.state = 1) and (each.start_infected = false));
 		
 		write "[SAVE] Saving new " + string(nb) + " notifications!";
 		
 		ask People {
-			if self.state = 1 {
+			if self.state = 1 and self.start_infected = false {
 				query_people <- query_people + prefix + ", '" + string(self.name) + "', " + string(self.id) + ", '" + string(starting_date) +
 					"', '" + self.objective + "', " + string(self.speed) + ", " + string(self.state) + ", " + string(self.living_place.id) +
 					", " + string(self.working_place.id) + ", " + string(self.start_work) + ", " + string(self.end_work) + 
@@ -947,9 +949,11 @@ species Saver parent: AgentDB {
 			}
 		}
 		
-		do executeUpdate(
-			updateComm: query_people
-		);
+		if (cnt > 1) {
+			do executeUpdate(
+				updateComm: query_people
+			);
+		}
  	}
  	
 	reflex save when: save_states and !end_simulation and ((use_initial_scenario and cycle > 0) or (!use_initial_scenario and cycle >= 0)) {
@@ -963,14 +967,14 @@ species Saver parent: AgentDB {
 		}
 		
 		write "Saving on Execution: " + string(execution_id) + " - " + string(scenario_id) + " - " + string(cycle);
-
-		do insert(
-			into: "metrics",
-			values: [
-				execution_id, scenario_id, start_from_cycle + cycle,
-				start_from_cycle, string(current_date), "people", 0, cycle_exposed_people[start_from_cycle + cycle],
-				cycle_infected_people[start_from_cycle + cycle], cycle_recovered_people[start_from_cycle + cycle], 0
-		]);
+	
+//		do insert(
+//			into: "metrics",
+//			values: [
+//				execution_id, scenario_id, start_from_cycle + cycle,
+//				start_from_cycle, string(current_date), "people", 0, cycle_exposed_people[start_from_cycle + cycle],
+//				cycle_infected_people[start_from_cycle + cycle], cycle_recovered_people[start_from_cycle + cycle], 0
+//		]);
 	}
 }
 
