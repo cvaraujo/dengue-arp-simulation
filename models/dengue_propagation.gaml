@@ -920,7 +920,12 @@ species Saver parent: AgentDB {
  		// --------------------------------- People ---------------------------------	
  		if (!self.isConnected()) {
 			do connect (params: POSTGRES);
-		} 
+		}
+		
+		if run_batch {
+			list<string> simulation_id <- simulation_name split_with ' ';
+			scenario_id <- int(simulation_id[1]) + 1;
+		}
 		
 		string prefix <- "(" + string(execution_id) + ", " + string(scenario_id) + ", " + string(start_from_cycle + cycle) + ", " + string(start_from_cycle);
 		
@@ -931,7 +936,7 @@ species Saver parent: AgentDB {
 		int cnt <- 1;
 		int nb <- People count ((each.state = 1) and (each.start_infected = false));
 		
-		write "[SAVE] Saving new " + string(nb) + " notifications!";
+		write "[SAVE] Saving new " + string(execution_id) + " - " + string(scenario_id) + " - " + string(start_from_cycle + cycle) + " => " + string(nb) + " notifications!";
 		
 		ask People {
 			if self.state = 1 and self.start_infected = false {
@@ -966,7 +971,7 @@ species Saver parent: AgentDB {
 			scenario_id <- int(simulation_id[1]) + 1;
 		}
 		
-		write "Saving on Execution: " + string(execution_id) + " - " + string(scenario_id) + " - " + string(cycle);
+//		write "Saving on Execution: " + string(execution_id) + " - " + string(scenario_id) + " - " + string(cycle);
 	
 //		do insert(
 //			into: "metrics",
@@ -1023,7 +1028,7 @@ experiment dengue_propagation type: gui until: (cycle >= max_cycles and end_simu
 }
 
 
-experiment headless_dengue_propagation type: batch keep_seed: true until: (cycle >= max_cycles or end_simulation) repeat: 100 {
+experiment headless_dengue_propagation type: batch keep_seed: true until: (cycle >= max_cycles or end_simulation) repeat: 50 {
 	//
 	parameter "Type of execution" var: run_batch category: "bool" init: true;
 	parameter "SQLite" var: sqlite_ds category: "string";
