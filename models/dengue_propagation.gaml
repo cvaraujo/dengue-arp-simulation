@@ -681,7 +681,7 @@ species People skills: [moving]{
 	reflex change_to_recovered_state when: state = 1 and flip(people_daily_recovery_rate) {
 		state <- 2;
 		cycle_recovered_people[(start_from_cycle + cycle)] <- cycle_recovered_people[(start_from_cycle + cycle)] + 1;
-		do die;
+		//do die;
 	}
 	
 	aspect default {
@@ -934,12 +934,12 @@ species Saver parent: AgentDB {
 			working_place, start_work_h, end_work_h, x, y) VALUES";
 		
 		int cnt <- 1;
-		int nb <- People count ((each.state = 1) and (each.start_infected = false));
+		int nb <- People count ((each.state >= 1) and (each.start_infected = false));
 		
 		write "[SAVE] Saving new " + string(execution_id) + " - " + string(scenario_id) + " - " + string(start_from_cycle + cycle) + " => " + string(nb) + " notifications!";
 		
 		ask People {
-			if self.state = 1 and self.start_infected = false {
+			if self.state >= 1 and self.start_infected = false {
 				query_people <- query_people + prefix + ", '" + string(self.name) + "', " + string(self.id) + ", '" + string(starting_date) +
 					"', '" + self.objective + "', " + string(self.speed) + ", " + string(self.state) + ", " + string(self.living_place.id) +
 					", " + string(self.working_place.id) + ", " + string(self.start_work) + ", " + string(self.end_work) + 

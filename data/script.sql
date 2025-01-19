@@ -1,9 +1,9 @@
-drop table eggs;
-drop table people;
-drop table mosquitoes;
-drop table breeding_sites;
-drop table metrics;
-drop table cases;
+--drop table eggs;
+--drop table people;
+--drop table mosquitoes;
+--drop table breeding_sites;
+--drop table metrics;
+--drop table cases;
 
 CREATE TABLE people (
     execution_id INT NOT NULL,
